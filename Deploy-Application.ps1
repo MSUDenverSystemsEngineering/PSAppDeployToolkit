@@ -50,7 +50,7 @@ Param (
 
 Try {
 	## Set the script execution policy for this process
-	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch {}
+	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch { Write-Error -Message "Unable to set the PowerShell Execution Policy to Bypass for this process." }
 	
 	##*===============================================
 	##* VARIABLE DECLARATION
