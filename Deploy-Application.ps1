@@ -63,7 +63,7 @@ Try {
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = '02/12/2017'
+	[string]$appScriptDate = '06/02/2017'
 	[string]$appScriptAuthor = '<author name>'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
@@ -111,8 +111,8 @@ Try {
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
 		
-		## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-		Show-InstallationWelcome -CloseApps 'iexplore' -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+		## Show Welcome Message, close applications if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
+		Show-InstallationWelcome -CloseApps 'iexplore' -CheckDiskSpace -PersistPrompt
 		
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -142,7 +142,7 @@ Try {
 		## <Perform Post-Installation tasks here>
 		
 		## Display a message at the end of the install
-		If (-not $useDefaultMsi) { Show-InstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -Icon Information -NoWait }
+		If (-not $useDefaultMsi) {  }
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
@@ -151,7 +151,7 @@ Try {
 		##*===============================================
 		[string]$installPhase = 'Pre-Uninstallation'
 		
-		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
+		## Show Welcome Message, close applications with a 60 second countdown before automatically closing
 		Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
 		
 		## Show Progress Message (with the default message)
