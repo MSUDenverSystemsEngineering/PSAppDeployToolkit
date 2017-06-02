@@ -3,7 +3,7 @@ image: WMF 5
 init:
 - ps: $deploy = "`$vmwfs14 = New-PSSession -ComputerName VMWFS14`nCopy-Item -Path `"`${Env:APPLICATION_PATH}\`${Env:APPVEYOR_PROJECT_SLUG}`" -Destination `"H:\Archive\SCCM\Staging\`${Env:APPVEYOR_PROJECT_NAME}\`${Env:APPVEYOR_BUILD_VERSION}`" -ToSession `$vmwfs14 -Recurse"
 install:
-- ps: "Install-PackageProvider -Name NuGet –Force\nInstall-Package -Name Pester -ProviderName PowerShellGet -Scope AllUsers -Force\nInstall-Module -Name PSScriptAnalyzer -Scope AllUsers –Force\nImport-Module -Name Pester\nImport-Module -Name PSScriptAnalyzer\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\${Env:APPVEYOR_PROJECT_NAME}.zip\" \"${Env:APPVEYOR_BUILD_FOLDER}\" -xr!Tests -xr!.git -x!appveyor.yml -x!.gitignore -x!.gitattributes\n\n$deploy | Out-File \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.ps1\"\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.zip\" \"deploy.ps1\""
+- ps: "Install-PackageProvider -Name NuGet –Force\nInstall-Package -Name Pester -ProviderName PowerShellGet -Scope AllUsers -Force\nInstall-Module -Name PSScriptAnalyzer -Scope AllUsers –Force\nImport-Module -Name Pester\nImport-Module -Name PSScriptAnalyzer\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\${Env:APPVEYOR_PROJECT_NAME}.zip\" \"${Env:APPVEYOR_BUILD_FOLDER}\"\n\n$deploy | Out-File \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.ps1\"\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.zip\" \"deploy.ps1\""
 build: off
 test_script:
 - ps: >-
