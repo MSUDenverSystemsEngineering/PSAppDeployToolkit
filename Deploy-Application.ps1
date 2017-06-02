@@ -111,7 +111,7 @@ Try {
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
 		
-		## Show Welcome Message, close applications if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
+		## Show Welcome Message, close conflicting applications, verify there is enough disk space to complete the install, and persist the prompt
 		Show-InstallationWelcome -CloseApps 'iexplore' -CheckDiskSpace -PersistPrompt
 		
 		## Show Progress Message (with the default message)
@@ -141,7 +141,7 @@ Try {
 		
 		## <Perform Post-Installation tasks here>
 		
-		## Display a message at the end of the install
+		## Display a message at the end of the install 
 		If (-not $useDefaultMsi) {  }
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
