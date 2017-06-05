@@ -29,7 +29,7 @@
 	60000 - 68999: Reserved for built-in exit codes in Deploy-Application.ps1, Deploy-Application.exe, and AppDeployToolkitMain.ps1
 	69000 - 69999: Recommended for user customized exit codes in Deploy-Application.ps1
 	70000 - 79999: Recommended for user customized exit codes in AppDeployToolkitExtensions.ps1
-.LINK 
+.LINK
 	http://psappdeploytoolkit.com
 #>
 [CmdletBinding()]
@@ -50,8 +50,8 @@ Param (
 
 Try {
 	## Set the script execution policy for this process
-	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch {}
-	
+	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch {Write-Error -Message "Unable to set the PowerShell Execution Policy to Bypass for this process."}
+
 	##*===============================================
 	##* VARIABLE DECLARATION
 	##*===============================================
@@ -63,29 +63,33 @@ Try {
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
+<<<<<<< Updated upstream
 	[string]$appScriptDate = '06/02/2017'
+=======
+	[string]$appScriptDate = '06/05/2017'
+>>>>>>> Stashed changes
 	[string]$appScriptAuthor = '<author name>'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
 	[string]$installTitle = ''
-	
+
 	##* Do not modify section below
 	#region DoNotModify
-	
+
 	## Variables: Exit Code
 	[int32]$mainExitCode = 0
-	
+
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
 	[version]$deployAppScriptVersion = [version]'3.6.9'
 	[string]$deployAppScriptDate = '02/12/2017'
 	[hashtable]$deployAppScriptParameters = $psBoundParameters
-	
+
 	## Variables: Environment
 	If (Test-Path -LiteralPath 'variable:HostInvocation') { $InvocationInfo = $HostInvocation } Else { $InvocationInfo = $MyInvocation }
 	[string]$scriptDirectory = Split-Path -Path $InvocationInfo.MyCommand.Definition -Parent
-	
+
 	## Dot source the required App Deploy Toolkit Functions
 	Try {
 		[string]$moduleAppDeployToolkitMain = "$scriptDirectory\AppDeployToolkit\AppDeployToolkitMain.ps1"
@@ -98,51 +102,64 @@ Try {
 		## Exit the script, returning the exit code to SCCM
 		If (Test-Path -LiteralPath 'variable:HostInvocation') { $script:ExitCode = $mainExitCode; Exit } Else { Exit $mainExitCode }
 	}
-	
+
 	#endregion
 	##* Do not modify section above
 	##*===============================================
 	##* END VARIABLE DECLARATION
 	##*===============================================
-		
+
 	If ($deploymentType -ine 'Uninstall') {
 		##*===============================================
 		##* PRE-INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
+<<<<<<< Updated upstream
 		
 		## Show Welcome Message, close conflicting applications, verify there is enough disk space to complete the install, and persist the prompt
 		Show-InstallationWelcome -CloseApps 'iexplore' -CheckDiskSpace -PersistPrompt
 		
+=======
+
+		## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
+		Show-InstallationWelcome -CloseApps 'iexplore' -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+
+>>>>>>> Stashed changes
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
-		
+
 		## <Perform Pre-Installation tasks here>
-		
-		
+
+
 		##*===============================================
-		##* INSTALLATION 
+		##* INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Installation'
-		
+
 		## Handle Zero-Config MSI Installations
 		If ($useDefaultMsi) {
 			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Install'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
 			Execute-MSI @ExecuteDefaultMSISplat; If ($defaultMspFiles) { $defaultMspFiles | ForEach-Object { Execute-MSI -Action 'Patch' -Path $_ } }
 		}
-		
+
 		## <Perform Installation tasks here>
-		
-		
+
+
 		##*===============================================
 		##* POST-INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Post-Installation'
-		
+
 		## <Perform Post-Installation tasks here>
+<<<<<<< Updated upstream
 		
 		## Display a message at the end of the install 
 		If (-not $useDefaultMsi) {  }
+=======
+
+		## Display a message at the end of the install
+		If (-not $useDefaultMsi) { Show-InstallationPrompt -Message 'You can customize text to appear at the end of an install or remove it completely for unattended installations.' -ButtonRightText 'OK' -Icon Information -NoWait }
+>>>>>>> Stashed changes
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
@@ -150,44 +167,49 @@ Try {
 		##* PRE-UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Pre-Uninstallation'
+<<<<<<< Updated upstream
 		
 		## Show Welcome Message, close applications with a 60 second countdown before automatically closing
+=======
+
+		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
+>>>>>>> Stashed changes
 		Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
-		
+
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
-		
+
 		## <Perform Pre-Uninstallation tasks here>
-		
-		
+
+
 		##*===============================================
 		##* UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Uninstallation'
-		
+
 		## Handle Zero-Config MSI Uninstallations
 		If ($useDefaultMsi) {
 			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Uninstall'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
 			Execute-MSI @ExecuteDefaultMSISplat
 		}
-		
+
 		# <Perform Uninstallation tasks here>
-		
-		
+
+
 		##*===============================================
 		##* POST-UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Post-Uninstallation'
-		
+
 		## <Perform Post-Uninstallation tasks here>
-		
-		
+
+
 	}
-	
+
 	##*===============================================
 	##* END SCRIPT BODY
 	##*===============================================
-	
+
 	## Call the Exit-Script function to perform final cleanup operations
 	Exit-Script -ExitCode $mainExitCode
 }
