@@ -1,5 +1,11 @@
+## Define variables
 $vmwfs14 = New-PSSession -ComputerName VMWFS14
 $applicationName = "Staging - ${Env:APPVEYOR_PROJECT_NAME}"
+$stagingFolder = "\\vmwfs14\H$\Archive\SCCM\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}"
+$install = "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru"
+$uninstall = "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru"
+
+## Remove unneeded files from the repository before uploading to the staging directory
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\appveyor.yml"
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\deploy.ps1"
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.gitignore" -Force
@@ -7,19 +13,33 @@ Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.gitattr
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.git" -Recurse -Force
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\Tests" -Recurse
 
+## Upload the repository to the staging directory, appending the build number so we don't overwrite our previous work.
 Copy-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}" -Destination "H:\Archive\SCCM\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}" -ToSession $vmwfs14 -Recurse
 
+## Import cmdlets for ConfigMgr
 Import-Module -Name "$(Split-Path $Env:SMS_ADMIN_UI_PATH)\ConfigurationManager.psd1"
+
+## Connect to the ConfigMgr site
 New-PSDrive -Name "MS1" -PSProvider "AdminUI.PS.Provider\CMSite" -Root "VMWAS117" -Description "MS1"
+
+## Set the active PSDrive to the ConfigMgr site
 Set-Location -Path MS1:
 
+## Create the ConfigMgr application (if if doesn't exist) in the format "Staging - GitHub project name"
+## This also adds a link to the GitHub repository in the Administrator Comments field for reference and checks the box next to "Allow this application to be installed from the Install Application task sequence action without being deployed"
+## Reference: https://docs.microsoft.com/en-us/powershell/sccm/configurationmanager/vlatest/new-cmapplication
 New-CMApplication -Name $applicationName -Description "Repository: https://github.com/${Env:APPVEYOR_REPO_NAME}" -AutoInstall $true
-Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -DeploymentTypeName "${applicationName} ${Env:APPVEYOR_BUILD_VERSION}" -InstallCommand "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru" -ScriptLanguage "PowerShell" -ScriptText "Update this detection method to accurately locate the application." -ContentLocation "\\vmwfs14\H$\Archive\SCCM\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}" -EnableBranchCache -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 720 -UninstallCommand "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru" -UserInteractionMode "Normal"
+
+## Create a new script deployment type with standard settings for PowerShell App Deployment Toolkit
+## You'll need to manually update the deployment type's detection method to find the software, make any other needed customizations to the application and deployment type, then distribute your content when ready.
+## Reference: https://docs.microsoft.com/en-us/powershell/sccm/configurationmanager/vlatest/add-cmscriptdeploymenttype
+Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -DeploymentTypeName "${applicationName} ${Env:APPVEYOR_BUILD_VERSION}" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this detection method to accurately locate the application." -ContentLocation $stagingFolder -EnableBranchCache -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 720 -UninstallCommand $uninstall -UserInteractionMode "Normal"
+
 # SIG # Begin signature block
 # MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB7EbdpGZTO/n1O
-# bNVwR3n/M9X/+gTfKFVkPRl99YMqrqCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCti+bEaul7bltu
+# 6UxB4cUmfl9qf8UY1dzQeXHveOJDsqCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -106,26 +126,26 @@ Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -Deploymen
 # FgNlZHUxGTAXBgoJkiaJk/IsZAEZFgltc3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZ
 # FgV3aW5hZDEZMBcGA1UEAxMQd2luYWQtVk1XQ0EwMS1DQQITfwAAACITuo77mvOv
 # 9AABAAAAIjANBglghkgBZQMEAgEFAKBmMBgGCisGAQQBgjcCAQwxCjAIoAKAAKEC
-# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIA4U
-# AwmZFTjbZbMwqCjWXm0ykaAaQN/owHeXtmyOZxiVMA0GCSqGSIb3DQEBAQUABIIB
-# AGzmKGsIdCKdmwKsPG73mtOS9R+vQFaGtICorfi3W2zsFriL0cG+kLoZE80Ug2lP
-# 0FKAohWTGcmNUW0qSKx0H62Hw36yXvv2+HjcetAZQbBg2Ieft7bNITYbt2bKKIqc
-# mmcskdeGoYQix+6BiCD4Giuq1Hs/VF4lT0QtimenfmgcQGfMbtjHBNB29SQg3SMg
-# Lf7uqMeJZ9Kwqtqe8VFNmXxdQwiYwmqULhzjh+uEYhzPI/nsF7O/Ehhtifkf0WuD
-# A89oZ2Q4ctRhR6V0jcL6c2zBljR5AkM3XSQrKiEZ4gE9I6JS9IBFk72aGUkeWPpR
-# Nzbs2yZdi65e9GKiN5IUC36hggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
+# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIBDV
+# Nklhk5Y7YoDzaiIofAtoOHSOn+AsmV2JRSU32i8mMA0GCSqGSIb3DQEBAQUABIIB
+# AK8Rxkxi4PTQpvLlIcz0pg1/7QdU4Yuyf8KFQHYwOOpGrXAnLfGXftmfA1y3lVm3
+# YT8CFLRf7ij6KcFPM8fDfZC2ZN1wMXbcf1uez3xyn1zc/sl2z5Z9WwG5uGDknpCT
+# MdiTM1KchMDnb2aeyjZPVy7XOr8emeQrYTf49U2sLoANdkhVlrofQtmS8yk76/O0
+# NQxvlIGPIlYSKuN+V0hCy0gqpEfM+Z1n3lGxVYxp3PixugQueM96Ds+lMBOSVGMr
+# GZn1Z/TTxkINLFcv6+BfpLjVx3YgjrS5oIS4TVy4qj+BEnZNsfdTsm3VOjRi5NiO
+# 6sDcisJZ5xZUpVfg1TylSiihggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
 # aDBSMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYG
 # A1UEAxMfR2xvYmFsU2lnbiBUaW1lc3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x
 # +EJ+6RnMU0EUMAkGBSsOAwIaBQCggf0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEH
-# ATAcBgkqhkiG9w0BCQUxDxcNMTcwNjE0MjEwMTU0WjAjBgkqhkiG9w0BCQQxFgQU
-# bQkRkqRJSQuVZJqb/L0biaV0H7gwgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
+# ATAcBgkqhkiG9w0BCQUxDxcNMTcwNjE0MjIwMDQzWjAjBgkqhkiG9w0BCQQxFgQU
+# pmpNTwD/jDYQHTs8/BKQrkMhhZkwgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
 # BBRjuC+rYfWDkJaVBQsAJJxQKTPseTBsMFakVDBSMQswCQYDVQQGEwJCRTEZMBcG
 # A1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYGA1UEAxMfR2xvYmFsU2lnbiBUaW1l
 # c3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x+EJ+6RnMU0EUMA0GCSqGSIb3DQEB
-# AQUABIIBAFBojKfDnGHHhQbZHhug+vGWArz7ZCjQjCEnSLyd1ABG12Gu5ak21eso
-# UnWYEW309uVNAtcAT6bLdmnExR6f7QLfjbuqWFX4nRKWK3C45NJcFwThZcPeoBIv
-# X3Ld6NC2Xdtz7RRlIHLL94S5cfn8AgOEVryyGGzq8NqEw22Fe1rp0QLcEVkHk/tN
-# FX28oldj8wFYwaRKFkINV4gn2f+yECVJc6knyPEr51Lid9OjgQ9LK7513TU6vsyL
-# G6Q12MLD6a5+KP3evnpQWDIcjbrehI8gTDTKRikaYP6PCh05U0TafhZg+kmcDlYC
-# dGKYPZbAVI//shV0fk12QHk1EKNufXk=
+# AQUABIIBADdJmTXv7abajBKZ0Q98z2ibo9aNH4ynhsYz1Obp/+Gs5WVwvltRH5Yg
+# ynQu3PRw/OXRkc0CbhiVgyzxgupjeUTSyHUhXRHsIedBaYOWo8lEMYm8I5fkQ5Rh
+# 2yRw5QV5uaWDaHZimqoYwASgGnfPnEuyeQLLfvnB3Z50pdyw1yyxvzblXx2qZt7T
+# Pt1E3FYoyOvburSxRmuO8zAtdZ54KwTQUm6e5AUKQZlPP7P6zf3aQ71t1GgALK/V
+# Tf742lxBBi0fumFy21qvHF1RGrfOC3i6eQ7JUaWwtHNl9hSbMSoYsMRXS/BcB9Ai
+# p0wfcvGY8hzJl+nupxqw1us0PrOCBDE=
 # SIG # End signature block
