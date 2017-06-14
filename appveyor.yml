@@ -1,9 +1,20 @@
 version: 1.0.{build}
 image: WMF 5
-init:
-- ps: $deploy = "`$vmwfs14 = New-PSSession -ComputerName VMWFS14`nCopy-Item -Path `"`${Env:APPLICATION_PATH}\`${Env:APPVEYOR_PROJECT_SLUG}`" -Destination `"H:\Archive\SCCM\Staging\`${Env:APPVEYOR_PROJECT_NAME}\`${Env:APPVEYOR_BUILD_VERSION}`" -ToSession `$vmwfs14 -Recurse"
 install:
-- ps: "Install-PackageProvider -Name NuGet –Force\nInstall-Package -Name Pester -ProviderName PowerShellGet -Scope AllUsers -Force\nInstall-Module -Name PSScriptAnalyzer -Scope AllUsers –Force\nImport-Module -Name Pester\nImport-Module -Name PSScriptAnalyzer\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\${Env:APPVEYOR_PROJECT_NAME}.zip\" \"${Env:APPVEYOR_BUILD_FOLDER}\"\n\n$deploy | Out-File \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.ps1\"\n\n7z a -tzip \"${Env:APPVEYOR_BUILD_FOLDER}\\deploy.zip\" \"deploy.ps1\""
+- ps: >-
+    Install-PackageProvider -Name NuGet –Force
+
+    Install-Package -Name Pester -ProviderName PowerShellGet -Scope AllUsers -Force
+
+    Install-Module -Name PSScriptAnalyzer -Scope AllUsers –Force
+
+    Import-Module -Name Pester
+
+    Import-Module -Name PSScriptAnalyzer
+
+    7z a -tzip "${Env:APPVEYOR_BUILD_FOLDER}\${Env:APPVEYOR_PROJECT_NAME}.zip" "${Env:APPVEYOR_BUILD_FOLDER}"
+
+    7z a -tzip "${Env:APPVEYOR_BUILD_FOLDER}\deploy.zip" "deploy.ps1"
 build: off
 test_script:
 - ps: >-
@@ -11,7 +22,7 @@ test_script:
 
     $results = Invoke-Pester -OutputFormat NUnitXml -OutputFile $testResultsFile -PassThru
 
-    (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/nunit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path $testResultsFile))
+    (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/nunit/$($Env:APPVEYOR_JOB_ID)", (Resolve-Path $testResultsFile))
 
     If ($results.FailedCount -gt 0) {
       throw "$($results.FailedCount) tests failed."
