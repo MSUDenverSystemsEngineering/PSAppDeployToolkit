@@ -1,4 +1,4 @@
-<#
+ï»¿<#
 .SYNOPSIS
 	This script performs the installation or uninstallation of an application(s).
 .DESCRIPTION
@@ -142,7 +142,7 @@ Try {
 		## <Perform Post-Installation tasks here>
 
 		## Display a message at the end of the install
-		If (-not $useDefaultMsi) {Show-InstallationPrompt -Message "'$appVendor' '$appName' '$appVersion' has been Sucessfully Installed." -ButtonRightText ‘OK’ -Icon Information -NoWait}
+		If (-not $useDefaultMsi) {Show-InstallationPrompt -Message "'$appVendor' '$appName' '$appVersion' has been Sucessfully Installed." -ButtonRightText â€˜OKâ€™ -Icon Information -NoWait}
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
