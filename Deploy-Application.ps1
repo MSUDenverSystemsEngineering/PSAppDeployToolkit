@@ -142,7 +142,7 @@ Try {
 		## <Perform Post-Installation tasks here>
 
 		## Display a message at the end of the install
-		If (-not $useDefaultMsi) {Show-InstallationPrompt -Message "'$appVendor' '$appName' '$appVersion' has been Sucessfully Installed." -ButtonRightText ‘OK’ -Icon Information -NoWait}
+		If (-not $useDefaultMsi) {Show-InstallationPrompt -Message "'$appVendor' '$appName' '$appVersion' has been sucessfully installed." -ButtonRightText 'OK' -Icon Information -NoWait}
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
