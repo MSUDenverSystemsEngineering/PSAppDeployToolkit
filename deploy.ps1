@@ -33,13 +33,13 @@ New-CMApplication -Name $applicationName -Description "Repository: https://githu
 ## Create a new script deployment type with standard settings for PowerShell App Deployment Toolkit
 ## You'll need to manually update the deployment type's detection method to find the software, make any other needed customizations to the application and deployment type, then distribute your content when ready.
 ## Reference: https://docs.microsoft.com/en-us/powershell/sccm/configurationmanager/vlatest/add-cmscriptdeploymenttype
-Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -DeploymentTypeName "${applicationName} ${Env:APPVEYOR_BUILD_VERSION}" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this detection method to accurately locate the application." -ContentLocation $stagingFolder -EnableBranchCache -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 720 -UninstallCommand $uninstall -UserInteractionMode "Normal"
+Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -DeploymentTypeName "${applicationName} ${Env:APPVEYOR_BUILD_VERSION}" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this detection method to accurately locate the application." -ContentLocation $stagingFolder -EnableBranchCache -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 120 -UninstallCommand $uninstall -UserInteractionMode "Normal"
 
 # SIG # Begin signature block
 # MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCti+bEaul7bltu
-# 6UxB4cUmfl9qf8UY1dzQeXHveOJDsqCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCdJJ0xohWeex8C
+# 5hlTl5hllert8yxvNWGyKgwGZjTvJaCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -126,26 +126,26 @@ Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -Deploymen
 # FgNlZHUxGTAXBgoJkiaJk/IsZAEZFgltc3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZ
 # FgV3aW5hZDEZMBcGA1UEAxMQd2luYWQtVk1XQ0EwMS1DQQITfwAAACITuo77mvOv
 # 9AABAAAAIjANBglghkgBZQMEAgEFAKBmMBgGCisGAQQBgjcCAQwxCjAIoAKAAKEC
-# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIBDV
-# Nklhk5Y7YoDzaiIofAtoOHSOn+AsmV2JRSU32i8mMA0GCSqGSIb3DQEBAQUABIIB
-# AK8Rxkxi4PTQpvLlIcz0pg1/7QdU4Yuyf8KFQHYwOOpGrXAnLfGXftmfA1y3lVm3
-# YT8CFLRf7ij6KcFPM8fDfZC2ZN1wMXbcf1uez3xyn1zc/sl2z5Z9WwG5uGDknpCT
-# MdiTM1KchMDnb2aeyjZPVy7XOr8emeQrYTf49U2sLoANdkhVlrofQtmS8yk76/O0
-# NQxvlIGPIlYSKuN+V0hCy0gqpEfM+Z1n3lGxVYxp3PixugQueM96Ds+lMBOSVGMr
-# GZn1Z/TTxkINLFcv6+BfpLjVx3YgjrS5oIS4TVy4qj+BEnZNsfdTsm3VOjRi5NiO
-# 6sDcisJZ5xZUpVfg1TylSiihggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
+# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIHiI
+# 9VF/6o5mxvdgojrX8Cj4AlJ+5UIDv+u8ewCdFR7tMA0GCSqGSIb3DQEBAQUABIIB
+# AFwsJO+DZZg0BtTCckoDAVd0hCCCR2wouAVLlBKsHkEWhXBtY1p+5nokTJdXCTq/
+# wXjTeZf2WmIiMeOnCbbSaHmc7SwhALduySTUwNazbiiNFlODc8UptViSJazhwJOX
+# oD1sj8O9TgQ9yLcQ/WlvsIFsO5C0+T+tnfMqpRwwKXrUCNhsiqF1V+H8yNhC4u4w
+# PFNIDu1z/QDFTxmyRS10J17d/pueQHGtmU7mW0WI44hiLYsRIWurGewvz6hW8i/F
+# y3y8YN/lD0CoWCVchZ6DWL1wC4idErrJINczPU1retZcfhUJMSB3+uBMq5ZMWtsb
+# Eeae+nPdHauHYkIfxr6D9ROhggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
 # aDBSMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYG
 # A1UEAxMfR2xvYmFsU2lnbiBUaW1lc3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x
 # +EJ+6RnMU0EUMAkGBSsOAwIaBQCggf0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEH
-# ATAcBgkqhkiG9w0BCQUxDxcNMTcwNjE0MjIwMDQzWjAjBgkqhkiG9w0BCQQxFgQU
-# pmpNTwD/jDYQHTs8/BKQrkMhhZkwgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
+# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMTIzMTQzMjI0WjAjBgkqhkiG9w0BCQQxFgQU
+# CkVOWs6rq+LN3rzQpJEwSsIa0gowgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
 # BBRjuC+rYfWDkJaVBQsAJJxQKTPseTBsMFakVDBSMQswCQYDVQQGEwJCRTEZMBcG
 # A1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYGA1UEAxMfR2xvYmFsU2lnbiBUaW1l
 # c3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x+EJ+6RnMU0EUMA0GCSqGSIb3DQEB
-# AQUABIIBADdJmTXv7abajBKZ0Q98z2ibo9aNH4ynhsYz1Obp/+Gs5WVwvltRH5Yg
-# ynQu3PRw/OXRkc0CbhiVgyzxgupjeUTSyHUhXRHsIedBaYOWo8lEMYm8I5fkQ5Rh
-# 2yRw5QV5uaWDaHZimqoYwASgGnfPnEuyeQLLfvnB3Z50pdyw1yyxvzblXx2qZt7T
-# Pt1E3FYoyOvburSxRmuO8zAtdZ54KwTQUm6e5AUKQZlPP7P6zf3aQ71t1GgALK/V
-# Tf742lxBBi0fumFy21qvHF1RGrfOC3i6eQ7JUaWwtHNl9hSbMSoYsMRXS/BcB9Ai
-# p0wfcvGY8hzJl+nupxqw1us0PrOCBDE=
+# AQUABIIBADKVyGPJ/g++6qjt3+bjppAi6qZQq/PxIYMhgGv66QPe6PkE8IgXOAiN
+# liT/wqfk9pm6vW6QL34G9iusMF50IrRVmr25Dftf23aZi1fv3Nw10WcBRpGJh4+1
+# 0usEvYCWVvwQUzLGKXsfo5/eAKRbqR6RsAanaNhjEtNJFCcD+7UFEryrB1HubDD1
+# YSSllpoS9BMBq0Kxs6PhPzgyaUutODhw/ZHxOM3XCMmSihNAYIr4g9tsLDAIchNV
+# yeIBIKMY5api6VCXlBvSnHKRFtck0Kqs/xRQOEoqAMgKNwfF/MKggUx5JcFpB1ni
+# 1hV06pgbwdYYfVtWUK4OS5Uplz7zbTk=
 # SIG # End signature block
