@@ -1,7 +1,7 @@
 ## Define variables
 $vmwfs14 = New-PSSession -ComputerName VMWFS14
 $applicationName = "Staging - ${Env:APPVEYOR_PROJECT_NAME}"
-$stagingFolder = "\\vmwfs14\H$\Archive\SCCM\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}"
+$stagingFolder = "\\vmwfs14\H$\Apps\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}"
 $install = "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru"
 $uninstall = "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru"
 
@@ -14,7 +14,7 @@ Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.git" -R
 Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\Tests" -Recurse
 
 ## Upload the repository to the staging directory, appending the build number so we don't overwrite our previous work.
-Copy-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}" -Destination "H:\Archive\SCCM\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}" -ToSession $vmwfs14 -Recurse
+Copy-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}" -Destination "H:\Apps\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}" -ToSession $vmwfs14 -Recurse
 
 ## Import cmdlets for ConfigMgr
 Import-Module -Name "$(Split-Path $Env:SMS_ADMIN_UI_PATH)\ConfigurationManager.psd1"
@@ -38,8 +38,8 @@ Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -Deploymen
 # SIG # Begin signature block
 # MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCdJJ0xohWeex8C
-# 5hlTl5hllert8yxvNWGyKgwGZjTvJaCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD0Nxumxccldv4l
+# op0dIbBYOlIW4+JJcFD7Aftmlq/nK6CCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -126,26 +126,26 @@ Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -Deploymen
 # FgNlZHUxGTAXBgoJkiaJk/IsZAEZFgltc3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZ
 # FgV3aW5hZDEZMBcGA1UEAxMQd2luYWQtVk1XQ0EwMS1DQQITfwAAACITuo77mvOv
 # 9AABAAAAIjANBglghkgBZQMEAgEFAKBmMBgGCisGAQQBgjcCAQwxCjAIoAKAAKEC
-# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIHiI
-# 9VF/6o5mxvdgojrX8Cj4AlJ+5UIDv+u8ewCdFR7tMA0GCSqGSIb3DQEBAQUABIIB
-# AFwsJO+DZZg0BtTCckoDAVd0hCCCR2wouAVLlBKsHkEWhXBtY1p+5nokTJdXCTq/
-# wXjTeZf2WmIiMeOnCbbSaHmc7SwhALduySTUwNazbiiNFlODc8UptViSJazhwJOX
-# oD1sj8O9TgQ9yLcQ/WlvsIFsO5C0+T+tnfMqpRwwKXrUCNhsiqF1V+H8yNhC4u4w
-# PFNIDu1z/QDFTxmyRS10J17d/pueQHGtmU7mW0WI44hiLYsRIWurGewvz6hW8i/F
-# y3y8YN/lD0CoWCVchZ6DWL1wC4idErrJINczPU1retZcfhUJMSB3+uBMq5ZMWtsb
-# Eeae+nPdHauHYkIfxr6D9ROhggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
+# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIPfW
+# XJ3hb4yEGQbRd2Z3NllLML2tRv/j5OGGOxw505LjMA0GCSqGSIb3DQEBAQUABIIB
+# AKEFHZQXIkdzAe/PwgSuvMA3l+x/1wQzljv/2Vy4Cwacrw0ncV4dfRe63eA2QDcY
+# zjB3d+b4ACfcnRjjEVs/iu+yqzrdxbEduvFXvhAyh1x3U0bSTpEjRySpu89CBtoj
+# 1vqGvBJvfozaLqr712z5ZpIzr+hrlViM3Rua/2P7CqQtBzANu/5iyA8lWaWFolsx
+# eQkTDXMP4eIfJtDx68FxSg9V9OWUyQkTVhso+/X7G6JHcNABEvQuuUG94ptQLO8N
+# AX/NAQ7EOzNKTuqCo+nGkiogluTC57DpgUM8o9gPJ70Qpo8xnKJM/zlSN+bLpECZ
+# H3olvea+pG+EIV5uMM9kScyhggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
 # aDBSMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYG
 # A1UEAxMfR2xvYmFsU2lnbiBUaW1lc3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x
 # +EJ+6RnMU0EUMAkGBSsOAwIaBQCggf0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEH
-# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMTIzMTQzMjI0WjAjBgkqhkiG9w0BCQQxFgQU
-# CkVOWs6rq+LN3rzQpJEwSsIa0gowgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
+# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMzA2MTQzODIyWjAjBgkqhkiG9w0BCQQxFgQU
+# 9xp+Rj73GHxd/hw1StE0cunUN8IwgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
 # BBRjuC+rYfWDkJaVBQsAJJxQKTPseTBsMFakVDBSMQswCQYDVQQGEwJCRTEZMBcG
 # A1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYGA1UEAxMfR2xvYmFsU2lnbiBUaW1l
 # c3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x+EJ+6RnMU0EUMA0GCSqGSIb3DQEB
-# AQUABIIBADKVyGPJ/g++6qjt3+bjppAi6qZQq/PxIYMhgGv66QPe6PkE8IgXOAiN
-# liT/wqfk9pm6vW6QL34G9iusMF50IrRVmr25Dftf23aZi1fv3Nw10WcBRpGJh4+1
-# 0usEvYCWVvwQUzLGKXsfo5/eAKRbqR6RsAanaNhjEtNJFCcD+7UFEryrB1HubDD1
-# YSSllpoS9BMBq0Kxs6PhPzgyaUutODhw/ZHxOM3XCMmSihNAYIr4g9tsLDAIchNV
-# yeIBIKMY5api6VCXlBvSnHKRFtck0Kqs/xRQOEoqAMgKNwfF/MKggUx5JcFpB1ni
-# 1hV06pgbwdYYfVtWUK4OS5Uplz7zbTk=
+# AQUABIIBAFVtHZwydQj7uz0Zs6zrMdpuZuElfzZFCttmyIRbYnDEC22e/3jdRJdw
+# 0Am11xdy6bNmoNTsmqwJfh79z9HUhoyOCMmzqssuKaNTlBYX0uxHAqs43R1m6ohZ
+# /XRs2OiyzUitk7L3gnTAldwO/G1YIeTF1jUX4lWHcOpp7d8RW8s8bgfd8Gw11J7e
+# IYVExQEy9CgHOtbHtDaSOxGc67sFpu+iA+Ua5GFq3X5N6ABXSmBucq6rpYEwLsOY
+# hrItVG9q3Q3rD9LHRBqll+l4ZhqOS1wp7LsVfR6DbF6njkFnGv/htJgo3yQqZ317
+# YGY34FHW4Vkf9UqRFqpTskSOvVVyon4=
 # SIG # End signature block
