@@ -1,39 +1,93 @@
 ## Define variables
-$vmwfs14 = New-PSSession -ComputerName VMWFS14
-$applicationName = "Staging - ${Env:APPVEYOR_PROJECT_NAME}"
-$stagingFolder = "\\vmwfs14\Apps\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}"
+$fileShare = New-PSSession -ComputerName $Env:serverName
+
+$stagingDir = $Env:stagingDirectory
+$productionDir = $Env:productionDirectory
+$cert = (Get-ChildItem Cert:\LocalMachine\My -CodeSigningCert)
+
+$initParams = @{}
+## Uncomment the next line for debugging
+## $initParams.Add("Verbose", $true)
+
+## Set application properties
+$appName = $Env:APPVEYOR_PROJECT_NAME
+$appName = $appName -replace '-',' ' -replace '_',' '
 $install = "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru"
 $uninstall = "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru"
 
-## Remove unneeded files from the repository before uploading to the staging directory
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\appveyor.yml"
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\deploy.ps1"
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.gitignore" -Force
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.gitattributes" -Force
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\.git" -Recurse -Force
-Remove-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}\Tests" -Recurse
+## Determine the app's author
+switch ($Env:APPVEYOR_REPO_COMMIT_AUTHOR) {
+  $Env:jordanGitHub { $author = $Env:jordan }
+  $Env:michaelGitHub { $author = $Env:michael }
+  $Env:quanGitHub { $author = $Env:quan }
+  $Env:steveGitHub { $author = $Env:steve }
+  $Env:truongGitHub { $author = $Env:truong }
+}
 
-## Upload the repository to the staging directory, appending the build number so we don't overwrite our previous work.
-Copy-Item -Path "${Env:APPLICATION_PATH}\${Env:APPVEYOR_PROJECT_SLUG}" -Destination "H:\Apps\Staging\${Env:APPVEYOR_PROJECT_NAME}\${Env:APPVEYOR_BUILD_VERSION}" -ToSession $vmwfs14 -Recurse
+## Remove unneeded files from the repository before uploading to the file share
+Write-Output "Cleaning up Git and CI files..."
+Remove-Item -Path "$Env:APPLICATION_PATH\appveyor.yml"
+Remove-Item -Path "$Env:APPLICATION_PATH\deploy.ps1"
+Remove-Item -Path "$Env:APPLICATION_PATH\TestsResults.xml"
+Remove-Item -Path "$Env:APPLICATION_PATH\.DS_Store" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$Env:APPLICATION_PATH\.gitignore" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$Env:APPLICATION_PATH\.gitattributes" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$Env:APPLICATION_PATH\Tests" -Recurse
+Remove-Item -Path "$Env:APPLICATION_PATH\.git" -Recurse -Force
 
-## Import cmdlets for ConfigMgr
-Import-Module -Name "$(Split-Path $Env:SMS_ADMIN_UI_PATH)\ConfigurationManager.psd1"
+## Sign the PowerShell file to allow running the script directly with a RemoteSigned execution policy
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.globalsign.com/scripts/timestamp.dll"
 
-## Connect to the ConfigMgr site
-New-PSDrive -Name "MS1" -PSProvider "AdminUI.PS.Provider\CMSite" -Root "VMWAS117" -Description "MS1"
+$contentLocation = "\\${Env:serverName}\Apps\Staging\${appName}"
 
-## Set the active PSDrive to the ConfigMgr site
-Set-Location -Path MS1:
+## Remove previous staging toolkit files if detected, except for Files and SupportFiles
+Invoke-Command -Session $fileShare -ScriptBlock {
+  If (Test-Path -Path "$Using:stagingDir\$Using:appName" -PathType Container) {
+    Write-Output "Removing staging PowerShell App Deployment Toolkit..."
+    Remove-Item -Path "$Using:stagingDir\$Using:appName\*.*" -Force | Where-Object { ! $_.PSIsContainer }
+    Remove-Item -Path "$Using:stagingDir\$Using:appName\AppDeployToolkit" -Force -Recurse | Where-Object { $_.PSIsContainer }
+  }
+}
+
+## Upload the repository to the staging directory, overwriting any remaining files or support files
+Copy-Item -Path "$Env:APPLICATION_PATH\*" -Destination "$stagingDir\$appName\" -ToSession $fileShare -Force -Recurse
+
+## Set the application name as we want it to appear in Configuration Manager
+$appName = "Staging - $appName"
+
+## Import the ConfigurationManager.psd1 module
+If ((Get-Module ConfigurationManager) -eq $null) {
+  Import-Module "$($Env:SMS_ADMIN_UI_PATH)\..\ConfigurationManager.psd1" @initParams
+}
+
+## Connect to the site's drive if it is not already present
+If ((Get-PSDrive -Name $Env:siteCode -PSProvider CMSite -ErrorAction SilentlyContinue) -eq $null) {
+  New-PSDrive -Name $Env:siteCode -PSProvider CMSite -Root $Env:siteServer @initParams
+}
+
+## Set the active PSDrive to the ConfigMgr site code
+Set-Location "$($Env:siteCode):\" @initParams
 
 ## Create the ConfigMgr application (if if doesn't exist) in the format "Staging - GitHub project name"
 ## This also adds a link to the GitHub repository in the Administrator Comments field for reference and checks the box next to "Allow this application to be installed from the Install Application task sequence action without being deployed"
-## Reference: https://docs.microsoft.com/en-us/powershell/sccm/configurationmanager/vlatest/new-cmapplication
-New-CMApplication -Name $applicationName -Description "Repository: https://github.com/${Env:APPVEYOR_REPO_NAME}" -AutoInstall $true
+## Reference: https://docs.microsoft.com/en-us/powershell/module/configurationmanager/new-cmapplication
+If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) -or (Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" -ErrorAction SilentlyContinue)) {
+  ## Rename an existing Staging application if detected
+  If (Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" -ErrorAction SilentlyContinue) {
+    Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" | Set-CMApplication -NewName $appName
+  }
+  ## Clear any existing owners and support contacts
+  Get-CMApplication -Name $appName | Set-CMApplication -ClearOwner -ClearSupportContact
+} Else {
+  New-CMApplication -Name $appName
+}
+
+Get-CMApplication -Name $appName | Set-CMApplication -Description "Repository: https://github.com/$Env:APPVEYOR_REPO_NAME" -ReleaseDate $(Get-Date -Format d)  -Owner $author -SupportContact 'System Engineers' -AutoInstall $True
 
 ## Create a new script deployment type with standard settings for PowerShell App Deployment Toolkit
 ## You'll need to manually update the deployment type's detection method to find the software, make any other needed customizations to the application and deployment type, then distribute your content when ready.
-## Reference: https://docs.microsoft.com/en-us/powershell/sccm/configurationmanager/vlatest/add-cmscriptdeploymenttype
-Get-CMApplication -Name $applicationName | Add-CMScriptDeploymentType -DeploymentTypeName "${applicationName} ${Env:APPVEYOR_BUILD_VERSION}" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this detection method to accurately locate the application." -ContentLocation $stagingFolder -EnableBranchCache -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 120 -UninstallCommand $uninstall -UserInteractionMode "Normal"
+## Reference: https://docs.microsoft.com/en-us/powershell/module/configurationmanager/add-cmscriptdeploymenttype
+Get-CMApplication -Name $appName | Add-CMScriptDeploymentType -DeploymentTypeName "$appName $Env:APPVEYOR_BUILD_VERSION" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this application's detection method to accurately locate the application." -ContentLocation $contentLocation -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 120 -UninstallCommand $uninstall -UserInteractionMode "Normal" -Comment "Commit: https://github.com/$Env:APPVEYOR_REPO_NAME/commit/$Env:APPVEYOR_REPO_COMMIT" -ContentFallback -EnableBranchCache -SlowNetworkDeploymentMode 'Download'
 
 # SIG # Begin signature block
 # MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
