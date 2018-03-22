@@ -7,8 +7,11 @@ install:
     Install-Module -Name PSScriptAnalyzer -Scope AllUsers –Force
     Import-Module -Name Pester
     Import-Module -Name PSScriptAnalyzer
-    7z a -tzip "${Env:APPVEYOR_BUILD_FOLDER}\${Env:APPVEYOR_PROJECT_NAME}.zip" "${Env:APPVEYOR_BUILD_FOLDER}"
 build: off
+after_test:
+- ps: |
+    7z a -tzip "${Env:APPVEYOR_BUILD_FOLDER}\${Env:APPVEYOR_PROJECT_NAME}.zip" "${Env:APPVEYOR_BUILD_FOLDER}\*"
+    7z a -tzip "${Env:APPVEYOR_BUILD_FOLDER}\${Env:APPVEYOR_PROJECT_NAME}.zip" "${Env:APPVEYOR_BUILD_FOLDER}\Tests\deploy.ps1"
 test_script:
 - ps: |
     $testResultsFile = ".\TestsResults.xml"
