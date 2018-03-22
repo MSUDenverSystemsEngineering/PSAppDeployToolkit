@@ -1,5 +1,5 @@
 version: 1.0.{build}
-image: WMF 5
+image: Visual Studio 2015
 install:
 - ps: |
     Install-PackageProvider -Name NuGet –Force
@@ -22,9 +22,9 @@ test_script:
     }
 artifacts:
 - path: '*.zip'
-  name: VMWFS14
+  name: PSAppDeployToolkit
 deploy:
 - provider: Environment
-  name: VMWFS14
   on:
     branch: master
+  name: FileServer
