@@ -25,6 +25,4 @@ artifacts:
   name: PSAppDeployToolkit
 deploy:
 - provider: Environment
-  on:
-    branch: master
   name: FileServer
