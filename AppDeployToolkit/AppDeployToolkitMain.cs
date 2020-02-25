@@ -1,5 +1,5 @@
-﻿// Date Modified: 01-08-2016
-// Version Number: 3.6.8
+﻿// Date Modified: 19-09-2019
+// Version Number: 3.8.0
 
 using System;
 using System.Text;
@@ -565,12 +565,20 @@ namespace PSADT
 				string localAdminGroupName = new SecurityIdentifier("S-1-5-32-544").Translate(typeof(NTAccount)).Value.Split('\\')[1];
 				DirectoryEntry admGroup = localMachine.Children.Find(localAdminGroupName, "group");
 				object members = admGroup.Invoke("members", null);
+				string validSidPattern = @"^S-\d-\d+-(\d+-){1,14}\d+$";
 				foreach (object groupMember in (IEnumerable)members)
 				{
 					DirectoryEntry member = new DirectoryEntry(groupMember);
 					if (member.Name != String.Empty)
 					{
-						localAdminGroupSidsList.Add((new NTAccount(member.Name)).Translate(typeof(SecurityIdentifier)).Value);
+						if (Regex.IsMatch(member.Name, validSidPattern))
+						{
+							localAdminGroupSidsList.Add(member.Name);
+						}
+						else
+						{
+							localAdminGroupSidsList.Add((new NTAccount(member.Name)).Translate(typeof(SecurityIdentifier)).Value);
+						}
 					}
 				}
 				_IsLocalAdminCheckSuccess = true;

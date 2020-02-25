@@ -2,9 +2,9 @@
 .SYNOPSIS
 	This script is a template that allows you to extend the toolkit with your own custom functions.
     # LICENSE #
-    PowerShell App Deployment Toolkit - Provides a set of functions to perform common application deployment tasks on Windows. 
+    PowerShell App Deployment Toolkit - Provides a set of functions to perform common application deployment tasks on Windows.
     Copyright (C) 2017 - Sean Lillis, Dan Cunningham, Muhammad Mashwani, Aman Motazedian.
-    This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. 
+    This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
     You should have received a copy of the GNU Lesser General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
 .DESCRIPTION
 	The script is automatically dot-sourced by the AppDeployToolkitMain.ps1 script.
@@ -13,7 +13,7 @@
     60000 - 68999: Reserved for built-in exit codes in Deploy-Application.ps1, Deploy-Application.exe, and AppDeployToolkitMain.ps1
     69000 - 69999: Recommended for user customized exit codes in Deploy-Application.ps1
     70000 - 79999: Recommended for user customized exit codes in AppDeployToolkitExtensions.ps1
-.LINK 
+.LINK
 	http://psappdeploytoolkit.com
 #>
 [CmdletBinding()]
@@ -27,8 +27,8 @@ Param (
 # Variables: Script
 [string]$appDeployToolkitExtName = 'PSAppDeployToolkitExt'
 [string]$appDeployExtScriptFriendlyName = 'App Deploy Toolkit Extensions'
-[version]$appDeployExtScriptVersion = [version]'1.5.0'
-[string]$appDeployExtScriptDate = '02/12/2017'
+[version]$appDeployExtScriptVersion = [version]'3.8.0'
+[string]$appDeployExtScriptDate = '23/09/2019'
 [hashtable]$appDeployExtScriptParameters = $PSBoundParameters
 
 ##*===============================================
@@ -47,19 +47,19 @@ Param (
 
 If ($scriptParentPath) {
 	Write-Log -Message "Script [$($MyInvocation.MyCommand.Definition)] dot-source invoked by [$(((Get-Variable -Name MyInvocation).Value).ScriptName)]" -Source $appDeployToolkitExtName
-}
-Else {
+} Else {
 	Write-Log -Message "Script [$($MyInvocation.MyCommand.Definition)] invoked directly" -Source $appDeployToolkitExtName
 }
 
 ##*===============================================
 ##* END SCRIPT BODY
 ##*===============================================
+
 # SIG # Begin signature block
 # MIIfagYJKoZIhvcNAQcCoIIfWzCCH1cCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDCvKAwWIPjyjwR
-# M4lJg7dqZ6NT9qtI4ErSKnWnW5LwJaCCGdcwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCipshESD+Q1bS1
+# 0WTnZZYmt64fGCkepYDJ/SrEUwdkS6CCGdcwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -203,25 +203,25 @@ Else {
 # ZGUgU2lnbmluZyBDQQIQBwNx0Q95WkBxmSuUB2Kb4jANBglghkgBZQMEAgEFAKCB
 # hDAYBgorBgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEE
 # AYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJ
-# BDEiBCDcJOZdP8SLEuhN75h8dwKythk0sA1MRQAZfWesZN0e5zANBgkqhkiG9w0B
-# AQEFAASCAQB4RcVaTh0BiyjgS7yGSoz41V9GE63zRT/1L/RZP/4A2HmL9BRmuuF8
-# XpAr3t6Tt+paBeJU1zM08P6Ie8BHvGEtqnAw8lS8Fe5EQHSRO5thHYr2glPrS1+O
-# hodef9BdGgMBSa+aG1PtqcGEnP4TGoDgzDlwVU79Z48usD2mGiP2HHU5Kb3CA5wQ
-# GkfKN9DCs+dPIAq7WUWAyun5boCvPNlWowIh4CFoABUiEkZBbSmAwA+NhQyrmT3K
-# 46H/bHbczv7HZhZZYQnuBc4jAdKG+MYbddAZvsnxzTkbHFRs6Ex21kTg31JEEHeR
-# Nx5FX/84H446m4S6y4+akGFKFJrFee9QoYICojCCAp4GCSqGSIb3DQEJBjGCAo8w
+# BDEiBCCH7FbnJb4QandFPHX3stsdCzg1NWZ2ruFdlBOxpy4VMDANBgkqhkiG9w0B
+# AQEFAASCAQCtszpFgsnXk9orcW1jhtN6XpzP1SaT0F/oDVl3DdTINT7q/pI3y/kM
+# 6uXjB8ygD/F4e/ZAorht0mEigN0YAjrh4bTdx8L/gUbvxYnIdwygk96gr9pFh35/
+# I57GTaHmx+YEf3EIvwD4Z5tgWKs7erhd+2acOmMY6VXp9ENnISYdGpFM9fsJ5tnl
+# b5sG7DzhEN46V0EpgHJucy02DccfjEQJAUqy+3ReZKOEr+LlT//pU8UTIewhT9P1
+# kDhk7Aq3qIOTtIECbHog+6WgIt9Bcf6jI5nzm0ZyerxxV5rUphJRZsoqB+ey3+fE
+# 2+yiMRaRmbRaGjsS1wyIOH1e3LJzkqduoYICojCCAp4GCSqGSIb3DQEJBjGCAo8w
 # ggKLAgEBMGgwUjELMAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYt
 # c2ExKDAmBgNVBAMTH0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh
 # 1pmnZJc+8fhCfukZzFNBFDAJBgUrDgMCGgUAoIH9MBgGCSqGSIb3DQEJAzELBgkq
-# hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MDYyNTE3MDkwM1owIwYJKoZIhvcN
-# AQkEMRYEFFCl7MBiN49HsLefBljvKE0Xo0EnMIGdBgsqhkiG9w0BCRACDDGBjTCB
+# hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDIyNTE1MTgwNFowIwYJKoZIhvcN
+# AQkEMRYEFL54Kwvy+aG2fzjOfTcQ7zVwtV54MIGdBgsqhkiG9w0BCRACDDGBjTCB
 # ijCBhzCBhAQUY7gvq2H1g5CWlQULACScUCkz7HkwbDBWpFQwUjELMAkGA1UEBhMC
 # QkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMTH0dsb2JhbFNp
 # Z24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh1pmnZJc+8fhCfukZzFNBFDANBgkq
-# hkiG9w0BAQEFAASCAQAfKnTWnG8SMxmRvCHPo0xhZbb1FhTfKm2YeKxyBrRFOIcx
-# LEVusaMcRU/btEBkbCaZL+vhzPQ19Xfm8hGWkcW94SP5oj/V9nPfSscczZUFSDIr
-# btGxlFZfTyl5YyLzbLa+ehTJQBjbTpvkEyWDAdQ9Nc761Mk5Q1OWuk8u4jBJFoLh
-# hs0AN/u8NaaFBTn19TGku4ns4iLkWjGvtiC7yJLZbQMrBCt1mJoMjs3s1bS8T7Ya
-# X74CsXSNdTZWnd78Wx1ccuv6BdF/LOAthn4Wr8ANMa05GUzVIFtp95hfD+C8JJg8
-# tLnCbnRQimeMeTdroZIO4IvWTynkxyRdQ+ifVh9D
+# hkiG9w0BAQEFAASCAQB8amcq7rm5qfY7tEG3E3VM2uDfI26/pdjZr/2CE75571YO
+# zU0XnewT0CwMKsFs1Axd4GmsUuFSDjU+lvE33DNjntUV1anZYFLystc/QYmjQcfK
+# r8Lrd08upKymJT7KXbjIWh0QdFRMbTuQgZ2FQNjyQznOpEe2MlmDrIiJrC0pYaQ+
+# r+zT4gt8lT3iE/gcOPfd9xZV0porMCanvdYCkMgVCrm2lisATiLJ8zox9bYd0C+y
+# MpZyBctnDPS4hrMXyf7+7hAY809Xh3lh8Ze1M+HgaPclL4obrl0wqCBG5V9sGdqD
+# azH7HX520vuodUYjUypRvGl2s8M72/mAh1o7avL1
 # SIG # End signature block

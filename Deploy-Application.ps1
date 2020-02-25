@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	This script performs the installation or uninstallation of an application(s).
 	# LICENSE #
@@ -39,7 +39,7 @@
 #>
 [CmdletBinding()]
 ## Suppress PSScriptAnalyzer errors for not using declared variables during AppVeyor build
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "", Justification="Suppresses AppVeyor errors on informational variables below")]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "", Justification="Suppress AppVeyor errors on unused variables below")]
 Param (
 	[Parameter(Mandatory=$false)]
 	[ValidateSet('Install','Uninstall')]
@@ -69,8 +69,8 @@ Try {
 	[string]$appArch = ''
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
-	[string]$appScriptVersion = '3.7.0.1'
-	[string]$appScriptDate = '03/22/2018'
+	[string]$appScriptVersion = '3.8.0.0'
+	[string]$appScriptDate = '02/25/2020'
 	[string]$appScriptAuthor = '<author name>'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
@@ -85,8 +85,8 @@ Try {
 
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
-	[version]$deployAppScriptVersion = [version]'3.7.0'
-	[string]$deployAppScriptDate = '02/13/2018'
+	[version]$deployAppScriptVersion = [version]'3.8.0'
+	[string]$deployAppScriptDate = '23/09/2019'
 	[hashtable]$deployAppScriptParameters = $psBoundParameters
 
 	## Variables: Environment

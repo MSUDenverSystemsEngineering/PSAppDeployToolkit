@@ -2,9 +2,9 @@
 .SYNOPSIS
 	Displays a graphical console to browse the help for the App Deployment Toolkit functions
     # LICENSE #
-    PowerShell App Deployment Toolkit - Provides a set of functions to perform common application deployment tasks on Windows. 
+    PowerShell App Deployment Toolkit - Provides a set of functions to perform common application deployment tasks on Windows.
     Copyright (C) 2017 - Sean Lillis, Dan Cunningham, Muhammad Mashwani, Aman Motazedian.
-    This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. 
+    This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
     You should have received a copy of the GNU Lesser General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
 .DESCRIPTION
 	Displays a graphical console to browse the help for the App Deployment Toolkit functions
@@ -22,8 +22,8 @@
 ## Variables: Script
 [string]$appDeployToolkitHelpName = 'PSAppDeployToolkitHelp'
 [string]$appDeployHelpScriptFriendlyName = 'App Deploy Toolkit Help'
-[version]$appDeployHelpScriptVersion = [version]'3.6.5'
-[string]$appDeployHelpScriptDate = '02/12/2017'
+[version]$appDeployHelpScriptVersion = [version]'3.8.0'
+[string]$appDeployHelpScriptDate = '23/09/2019'
 
 ## Variables: Environment
 [string]$scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
@@ -130,11 +130,12 @@ Write-Log -Message "[$appDeployHelpScriptFriendlyName] console closed." -Source 
 ##*===============================================
 ##* END SCRIPT BODY
 ##*===============================================
+
 # SIG # Begin signature block
 # MIIfagYJKoZIhvcNAQcCoIIfWzCCH1cCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCEhLLxn4J4+GqO
-# /cnHSFL/ZRYhK6NlawoAKjV8xFMpYqCCGdcwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCD4qnBahFoN6nKI
+# FxNI47BkQ56P83KBURRgYnQ7EICFqqCCGdcwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -278,25 +279,25 @@ Write-Log -Message "[$appDeployHelpScriptFriendlyName] console closed." -Source 
 # ZGUgU2lnbmluZyBDQQIQBwNx0Q95WkBxmSuUB2Kb4jANBglghkgBZQMEAgEFAKCB
 # hDAYBgorBgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEE
 # AYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJ
-# BDEiBCDpaqwEnIzA55Ykar3//fbwGWBSUoi+5jn7VYVdaSA+gDANBgkqhkiG9w0B
-# AQEFAASCAQB2Cfm7aWxsr5W5ZVti+2Hw3lj5K6zH5kr8QNxN6A/gwq3K9nCWQdDW
-# i2uQltqekHMR+m9BbBgC+iGVAsMzbGcC3RuNO6gOyb0r/XvfrvQVir7yJnN5IrVy
-# CnSEMF0TT1GPRkNIYGVqVjEPPsW+uZ6qIxWFGMhCiQmMq2BwVa6Me03n8Jk7dIQj
-# +IWVIE+jOR0H0vHekfI301ArEuFhtYJ3OwDR3KxL2wWsipmwVEKVOZ3/MLtGcOuN
-# dR3MjDvXlUaDbcdoREB0v85BBVMTjutN3pIU1Ylo0Rnq2+4Zn2dLFD+m2303KpXf
-# ALcGfotlzb0hFA0fDWaEfElEmGP673/4oYICojCCAp4GCSqGSIb3DQEJBjGCAo8w
+# BDEiBCAKrJ99mK9RgdRLm/8DD9AOUNvdY14rnha/9zYA7GfCTTANBgkqhkiG9w0B
+# AQEFAASCAQCvJU0UZcaIscF+izekMfEzviX3WYToXVJHmiftXwXpVNb74BJJauJi
+# ObKZc7e9TkHg1OSzn/SbyIVndl2hZWtt4h15/FjJboX7kFtLt5yd3e5b7ctaOrjn
+# tV375xIKmQ+aso+Wjt+NpLTa11eg01UsElQASEknxAcFWC5FsSlk34JpP7ftog4V
+# POooQo5Iqi1SQ6b0O8KO4y5zsDBHQT31Lw/01grXywmr2yrkRg6vB8UltYHU0dyK
+# QDpntADJoNq3lEcIQXumCRnG7DisrPrsCE7igVbYR3HAhiq6Cum9ZOgU4RoOawYo
+# v+OwXTP0pFoP4BbEsn3OKtWTqWkXDnkDoYICojCCAp4GCSqGSIb3DQEJBjGCAo8w
 # ggKLAgEBMGgwUjELMAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYt
 # c2ExKDAmBgNVBAMTH0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh
 # 1pmnZJc+8fhCfukZzFNBFDAJBgUrDgMCGgUAoIH9MBgGCSqGSIb3DQEJAzELBgkq
-# hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MDYyNTE3MDkwM1owIwYJKoZIhvcN
-# AQkEMRYEFL7MC5BkpKkwW/jByDNcVktFAtZOMIGdBgsqhkiG9w0BCRACDDGBjTCB
+# hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDIyNTE1MTgwNFowIwYJKoZIhvcN
+# AQkEMRYEFHP+fJyskurQa+3mtRkat4r8MoMTMIGdBgsqhkiG9w0BCRACDDGBjTCB
 # ijCBhzCBhAQUY7gvq2H1g5CWlQULACScUCkz7HkwbDBWpFQwUjELMAkGA1UEBhMC
 # QkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMTH0dsb2JhbFNp
 # Z24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh1pmnZJc+8fhCfukZzFNBFDANBgkq
-# hkiG9w0BAQEFAASCAQAV77XN1rllPGHO/xKju/pFIw3vGsDnrwor3SMwn+AhUry2
-# DnIsV3Tggr6TIN3EkR7OFmLLiM8Jf3X+0D4ad5QYzZgEs7yja4KSn+vlzTfJ6HND
-# 0l5Jc3j5Sqw1zlN08uvVlE5P0Z19mM+/wxKX+ILI6gLIultdWfPYxgjy0uyUv7Ot
-# XM3ztiaDJRC3J56JoJypvST2ZLR1sg3HYNIwzNQlhNhYBGyiK1wICvh9+tpWXsu3
-# 5Ioh1gl3cT5JqXAOOUL78jqLz9D3zCwc90GPgoPMDrBfVl41YOWaSJOqcw/w02zY
-# NXMUd+0HUlmYzYgIqmOkK8OMrhNjgzcbEeTaAaBn
+# hkiG9w0BAQEFAASCAQAPilrA7uUZIOqm6uyQlhfthpPI2zOlUOwRM8Ha2MEC23vE
+# GlIr0U9689vmACGCBh+wSfc7eXIMQ4Y/BHK4VrIq8rx8uje5ljqhWEwee5ThGc+j
+# DwUKuQGzQMIcbKJysAScIxkIL/yMdSMNBJ2ML3s4rC5aVYE7W6bBAE6EOIblppAl
+# KLJr3j+6qLS9QF+4hmOxp3c6X7vzY6gIPkx7Pg5ni1GHrfvqIeRsOCW3ZsQgbunz
+# M1HrUWMlWyMj/HD0wijBqhBthMvBXsGauiftSB7fII877SgjB8k7bqVKbcyuxTco
+# jo84iKe5ZmO/HmbIPR/OShwftqKyxj1k13VOPsn0
 # SIG # End signature block
