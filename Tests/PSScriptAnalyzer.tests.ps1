@@ -5,7 +5,7 @@ Describe 'Testing against PSScriptAnalyzer rules' {
 		forEach ($rule in $scriptAnalyzerRules) {
 			It "Should pass $rule" {
 				If ($analysis.RuleName -contains $rule) {
-					$analysis | Where RuleName -EQ $rule -OutVariable failures | Out-Default
+					$analysis | Where-Object RuleName -EQ $rule -OutVariable failures | Out-Default
 					$failures.Count | Should Be 0
 				}
 			}
