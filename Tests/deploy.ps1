@@ -60,12 +60,12 @@ Copy-Item -Path "$Env:APPLICATION_PATH\*" -Destination "$stagingDir\$appName\" -
 $appName = "Staging - $appName"
 
 ## Import the ConfigurationManager.psd1 module
-If ((Get-Module ConfigurationManager) -eq $null) {
+If ($null -eq (Get-Module ConfigurationManager)) {
   Import-Module "$($Env:SMS_ADMIN_UI_PATH)\..\ConfigurationManager.psd1" @initParams
 }
 
 ## Connect to the site's drive if it is not already present
-If ((Get-PSDrive -Name $Env:siteCode -PSProvider CMSite -ErrorAction SilentlyContinue) -eq $null) {
+If ($null -eq (Get-PSDrive -Name $Env:siteCode -PSProvider CMSite -ErrorAction SilentlyContinue)) {
   New-PSDrive -Name $Env:siteCode -PSProvider CMSite -Root $Env:siteServer @initParams
 }
 
