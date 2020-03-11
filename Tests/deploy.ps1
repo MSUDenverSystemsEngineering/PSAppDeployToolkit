@@ -11,7 +11,7 @@ $initParams = @{}
 
 ## Set application properties
 $appName = $Env:APPVEYOR_PROJECT_NAME
-$appName = $appName -replace "_+"," " -replace "\-{2,}"," - " -replace "\b-\b"," "
+$appName = $appName -replace "_+"," " -replace "\-{2,}"," - " -replace "\b-+\b"," "
 $install = "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru"
 $uninstall = "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru"
 
@@ -37,11 +37,11 @@ Remove-Item -Path "$Env:APPLICATION_PATH\.git" -Recurse -Force
 
 ## Sign PowerShell files to allow running the script directly with a RemoteSigned execution policy
 Get-ChildItem  "$Env:APPLICATION_PATH\AppDeployToolkit" `
-  | Where-Object { $_.Name -like ".ps1" } `
+  | Where-Object { $_.Name -like "*.ps1" } `
     | ForEach-Object `
       { Set-AuthenticodeSignature $_.FullName $cert `
         -HashAlgorithm SHA256 `
-        -TimestampServer "http://timestamp.comodoca.com" `
+        -TimestampServer "$timestampServer" `
       }
 
 Get-ChildItem  "$Env:APPLICATION_PATH" `
@@ -49,7 +49,7 @@ Get-ChildItem  "$Env:APPLICATION_PATH" `
     | ForEach-Object `
       { Set-AuthenticodeSignature $_.FullName $cert `
         -HashAlgorithm SHA256 `
-        -TimestampServer "http://timestamp.comodoca.com" `
+        -TimestampServer "$timestampServer" `
       }
 
 $contentLocation = "$Env:stagingContentLocation\$appName"
@@ -131,8 +131,8 @@ Get-CMApplication -Name $appName | `
 # SIG # Begin signature block
 # MIIkqQYJKoZIhvcNAQcCoIIkmjCCJJYCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNteYJ9n4GIxtJ
-# ixCjEVEVJuIDDz26BIC1aCT7ZZasYqCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAtDoe0ebtDJthM
+# KNHCzpVbaRvtg2gcjjkWxg/UrlfuWaCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
 # H1IKS8YkJqdLMA0GCSqGSIb3DQEBBQUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQK
 # EwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5l
 # dHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDUw
@@ -306,23 +306,23 @@ Get-CMApplication -Name $appName | `
 # JTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0ECEAcDcdEPeVpA
 # cZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIBDDEKMAigAoAA
 # oQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4w
-# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgNRtcWV3cm/FSB/QDiJjAPxUT
-# CpuZaPhfpcPFrgH1hYAwDQYJKoZIhvcNAQEBBQAEggEAnS8i+VyaCRreHIjW/hAG
-# KFihdu5s8VDz3GjY6klbSDrqix61ORqr9NLcyZ/OBXo4/OijMc4oF9cdGfnlGUeZ
-# 0H+rL5LGO8QXL4s5kaIzjuDCyePgBww5E6a4k4UfKbxsqeEFsqpK3rYPbE6FUc6t
-# ccKy5iD1nXigHMdsCAMdC1yADShROWJXIIQ0IKDAtAsC5kuyouxeq5uU2U2PQ+eg
-# caXXtReLCmRgcbPfmDv/XB2uAj6fe8B0Zxck9ZD6+EnjtZyimGvUABHQ9yTCCIoB
-# E27K0JpkizBiC8MlNkCQWgnLcrwHcm1DdoDna1N0fyaf1whXLavkPSGuhjBDoh7R
-# DKGCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
+# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQg8Fi3KaAQL4GTDkXGmDJZbz+T
+# eZakVPbohpVfsAAc62YwDQYJKoZIhvcNAQEBBQAEggEAG6ElUwTULu2abOP95v6M
+# VM9ewsq8mS8zpqVbvasf4OdyhuB7GyFX42LYATywQvDQhZJrdzx5Dt0hz0qaXH5d
+# CZ31wDzNVGCZMNd3AeFtnsVp5XYUNIfdy9aiORgB6dqlYhRYUQx71t54OqDG/iuN
+# dUnKVo7xCJTXQPKxCjGjJYPzNFRUFC5xSD7fWGjdA3ovAQ8/yeJP4DXtnPNH2IWS
+# tBfA5PzyzWJQyxH0qD3cqpE0mfenZt8FCtUn3MTEFyU1jd+ZGeVVzdWHOZ8kSDYP
+# KEs1mpsreVDYMp4UDqed1asU8RcGhTrMQmoPBRjhJnIYP0yQvbxIplU/bUIebgr4
+# I6GCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
 # QjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3Jk
 # MRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEgMB4GA1UEAxMXQ09NT0RPIFRp
 # bWUgU3RhbXBpbmcgQ0ECECtz23RjEUxaWzJK8jBXckkwCQYFKw4DAhoFAKBdMBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE1
-# MDQzMFowIwYJKoZIhvcNAQkEMRYEFBlfo+p2PHlcHix27sa7C6+Y06iyMA0GCSqG
-# SIb3DQEBAQUABIIBAGL8yqishLgga2JF1J8KKewBOLkly2JJRNiqBZGcoYXBSIaA
-# BCyI+MWDmnQjNheAkWobEpVBDtbDUsFp/evEXjyUYKW+qz7XuxJvPXbCcFdp/IxM
-# U3yaDB5ZVGcE0+T+2g6j7eyNRwWZzdk8WNevjOvJzSCfrzfoUtKcxtwjUwjjH9IS
-# WH6BnJwbdP/Jixihc6ITmOaU8pgxITH+wAjIxTBrSD0poGk90dBnYIN9CSPN5lcp
-# G7Vh/LNw9R8hzIV0RyyuxwxKyAs/Y3BLMtjYilOJB2TNKypLVyHo1j4nB2ItQbLz
-# wA/WcGTeVy6LN7hkYaLWg9tAdUN7jetnjY7xMUw=
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE2
+# MTIyNFowIwYJKoZIhvcNAQkEMRYEFGoaxcrurb02YP7WiDe0FBMMmuFeMA0GCSqG
+# SIb3DQEBAQUABIIBAHMEqCs9UBPpsyCX8G7B+6hjXZ0UhOXcFhdmDoE0kG76NoOB
+# 7mT774NCZkE7Z+XJZdW3P4iJlbpTF2yGRXaak67DO92/oow8BzeRfOYoNqtGypF4
+# 2zlTfZC2s8iBX6EfNJc3Yz60+gkUn5+aqVvXgn/LjTtEGK5brPpXXiiEoyx3zKcq
+# 3VM9yhrpbBMOf+z1PrBuUj2MzhScvYCOPW9NuMjOChS1KOJEcccKelIgy+SOEo/a
+# c2iiRITbIVQnUXzx4NLdyH0AwFbJSHx2bZkr3BJpem2Z0UnW5HKO10O/5StwJUBo
+# 9BsJxjrtr0K5PW/AC8Byhia1oJS0vXKAigZ1Ijs=
 # SIG # End signature block
