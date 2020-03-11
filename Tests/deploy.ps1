@@ -36,10 +36,18 @@ Remove-Item -Path "$Env:APPLICATION_PATH\Tests" -Recurse
 Remove-Item -Path "$Env:APPLICATION_PATH\.git" -Recurse -Force
 
 ## Sign the PowerShell file to allow running the script directly with a RemoteSigned execution policy
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitExtensions.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitHelp.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitMain.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert `
+  -HashAlgorithm SHA256 `
+  -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitExtensions.ps1" $cert `
+  -HashAlgorithm SHA256 `
+  -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitHelp.ps1" $cert `
+  -HashAlgorithm SHA256 `
+  -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitMain.ps1" $cert `
+  -HashAlgorithm SHA256  `
+  -TimestampServer "$timestampServer"
 
 $contentLocation = "$Env:stagingContentLocation\$appName"
 
@@ -48,7 +56,8 @@ Invoke-Command -Session $fileShare -ScriptBlock {
   If (Test-Path -Path "$Using:stagingDir\$Using:appName" -PathType Container) {
     Write-Output "Removing staging PowerShell App Deployment Toolkit..."
     Remove-Item -Path "$Using:stagingDir\$Using:appName\*.*" -Force | Where-Object { ! $_.PSIsContainer }
-    Remove-Item -Path "$Using:stagingDir\$Using:appName\AppDeployToolkit" -Force -Recurse | Where-Object { $_.PSIsContainer }
+    Remove-Item -Path "$Using:stagingDir\$Using:appName\AppDeployToolkit" -Force -Recurse | `
+      Where-Object { $_.PSIsContainer }
   } Else {
     New-Item -Path $Using:stagingDir -Name $Using:appName -ItemType "directory"
   }
@@ -76,8 +85,10 @@ Set-Location "$($Env:siteCode):\" @initParams
 ## Create the ConfigMgr application (if if doesn't exist) in the format "Staging - GitHub project name"
 ## This also adds a link to the GitHub repository in the Administrator Comments field for reference and checks the box next to "Allow this application to be installed from the Install Application task sequence action without being deployed"
 ## Reference: https://docs.microsoft.com/en-us/powershell/module/configurationmanager/new-cmapplication
-If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) -or (Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" -ErrorAction SilentlyContinue)) {
-  ## Rename an existing Staging application if detected
+If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) `
+  -or (Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" -ErrorAction SilentlyContinue)) {
+  
+    ## Rename an existing Staging application if detected
   If (Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" -ErrorAction SilentlyContinue) {
     Get-CMApplication -Name "Staging - $Env:APPVEYOR_PROJECT_NAME" | Set-CMApplication -NewName $appName
   }
@@ -87,18 +98,38 @@ If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) -or (Get-CM
   New-CMApplication -Name $appName
 }
 
-Get-CMApplication -Name $appName | Set-CMApplication -Description "Repository: https://github.com/$Env:APPVEYOR_REPO_NAME" -ReleaseDate $(Get-Date -Format d)  -Owner $author -SupportContact 'System Engineers' -AutoInstall $True
+Get-CMApplication -Name $appName | `
+  Set-CMApplication -Description "Repository: https://github.com/$Env:APPVEYOR_REPO_NAME" `
+  -ReleaseDate $(Get-Date -Format d) `
+  -Owner $author `
+  -SupportContact 'System Engineers' `
+  -AutoInstall $True
 
 ## Create a new script deployment type with standard settings for PowerShell App Deployment Toolkit
 ## You'll need to manually update the deployment type's detection method to find the software, make any other needed customizations to the application and deployment type, then distribute your content when ready.
 ## Reference: https://docs.microsoft.com/en-us/powershell/module/configurationmanager/add-cmscriptdeploymenttype
-Get-CMApplication -Name $appName | Add-CMScriptDeploymentType -DeploymentTypeName "$appName $Env:APPVEYOR_BUILD_VERSION" -InstallCommand $install -ScriptLanguage "PowerShell" -ScriptText "Update this application's detection method to accurately locate the application." -ContentLocation $contentLocation -InstallationBehaviorType "InstallForSystem" -LogonRequirementType "WhetherOrNotUserLoggedOn" -MaximumRuntimeMins 120 -UninstallCommand $uninstall -UserInteractionMode "Normal" -Comment "Commit: https://github.com/$Env:APPVEYOR_REPO_NAME/commit/$Env:APPVEYOR_REPO_COMMIT" -ContentFallback -EnableBranchCache -SlowNetworkDeploymentMode 'Download'
+Get-CMApplication -Name $appName | `
+  Add-CMScriptDeploymentType -DeploymentTypeName `
+    "$appName $Env:APPVEYOR_BUILD_VERSION" `
+    -InstallCommand $install `
+    -ScriptLanguage "PowerShell" `
+    -ScriptText "Update this application's detection method to accurately locate the application." `
+    -ContentLocation $contentLocation `
+    -InstallationBehaviorType "InstallForSystem" `
+    -LogonRequirementType "WhetherOrNotUserLoggedOn" `
+    -MaximumRuntimeMins 120 `
+    -UserInteractionMode "Normal" `
+    -UninstallCommand $uninstall `
+    -ContentFallback `
+    -Comment "Commit: https://github.com/$Env:APPVEYOR_REPO_NAME/commit/$Env:APPVEYOR_REPO_COMMIT" `
+    -SlowNetworkDeploymentMode 'Download' `
+    -EnableBranchCache
 
 # SIG # Begin signature block
 # MIIkqQYJKoZIhvcNAQcCoIIkmjCCJJYCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWoZWyjBd4krq8
-# gJkQQet7XrSyv5jaGFlFzanT87fGZqCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/nUGIQ3oftCOQ
+# zyjRnZqYrbzjeqkpGqP+TORrErIcdKCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
 # H1IKS8YkJqdLMA0GCSqGSIb3DQEBBQUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQK
 # EwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5l
 # dHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDUw
@@ -272,23 +303,23 @@ Get-CMApplication -Name $appName | Add-CMScriptDeploymentType -DeploymentTypeNam
 # JTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0ECEAcDcdEPeVpA
 # cZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIBDDEKMAigAoAA
 # oQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4w
-# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgixiUnsCla0/mQ6sMJy39OwpB
-# tlgtaWm1ZSUYOAnzYwgwDQYJKoZIhvcNAQEBBQAEggEAWGfXBjmiWksRUYb1EKtP
-# k0LdjtzhJgUHcExtvs74PQocQdDctcVHckQQy9r9jY8hOWfnoZnQuTabt5MMbt8K
-# q1Ix2gyuE/dbL6v6f7VkS0DRASmTp2GDLIVmedXk9JVYw6UQ05NhS6YbuQEIHDOA
-# fYCfddcWdhc9gYHeRcJau5I27TFPjsevTZqdxULGRQ8TeKUMdp/Pg/40IffJmwT6
-# kxz4UURdkx3NHGAyc4hqwXyS9ei9jX146Xg3e2mAuGVf34KSDhArzQEW++G+xpo5
-# LdT1IFyXU/xGUj2jgMw+S8vJf0AftVorloo3RqmTpKhdb0+wKkgAwgee25k3BzCD
-# k6GCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
+# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgOE0ntm79rJPz6Zd9FIe5pYdS
+# wX/VjRxIKrI6HpXhzJowDQYJKoZIhvcNAQEBBQAEggEAELmxbBrGhvL82k/YLnkM
+# UqFmt4DDIYbGpzFjZVeCUm9x2k90pwflDHiAhYmuV+zFDAioFoi7zIYQMAnqexyn
+# bCrBdp5ExttwKtVr7WYihGV7BO+SkITjbfrqu/35n91jbLajlwnJgvMGcxVAL+5g
+# fONS/bjY4bqPI8BlojhpMy2iyzpSLksL/hL4i6sGYRaQgl37UM0PeuxEz28azLtb
+# TpHXN3BXRrdgK/89LlASNLm8ST+dN99ywUMd0U0Sd+PMxTqeihBxVhRT9U6eRWFi
+# Rn6lBxweHnarovEkRgDzCDM+r0vwobgKiV4KLk5cpJvpZ92iYnHYiMPFRvJ7FQI9
+# KaGCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
 # QjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3Jk
 # MRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEgMB4GA1UEAxMXQ09NT0RPIFRp
 # bWUgU3RhbXBpbmcgQ0ECECtz23RjEUxaWzJK8jBXckkwCQYFKw4DAhoFAKBdMBgG
 # CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE0
-# NDMwNVowIwYJKoZIhvcNAQkEMRYEFG0g8jAP1q4so0AgXd8pktqHC7eqMA0GCSqG
-# SIb3DQEBAQUABIIBAF7j2NyP/RcVqWAM7mOoifo8oLnbEKCAkeWbtximlgIss72K
-# bIiOtJvOV7v+ynQCiYrSTV/SxcBIRc0kua8KDkxhFV2J9uYQZ9el1kOucLtYYxtH
-# 5B4Wo98vrV0/QwH9wici8u9kbPBib/evK570pBuOFkuMxij/g+THVkOp1T2XouBG
-# 9/cX15VwmmQfyp9SphB6uTuyaii2oAEyWWIiQwuhx1pg9Kpil3glm4OzMpAOm67S
-# LeOKNp416VjsUz9FjapooU0PUS4NBnNHRb4JdVKjMnOYt3bnQKSEHWPW3TrU/THC
-# wyul4j2E2UNUuPe4n0A2F3SWv6fea9LuBPYxSgw=
+# NTMyN1owIwYJKoZIhvcNAQkEMRYEFFsfcfK001uJPzTOF0vQwRtecaUaMA0GCSqG
+# SIb3DQEBAQUABIIBAGLY3gqIlVlmkSIKR+jsvnAMSAXwtoD7o++U5KdzR8NagfXM
+# ou3m6heNjnhRASKhYlBpOvCECu9HoJaRmucCBX1AzNrAQAzf7sWFKXSfUYjsIfXw
+# D/y6/KBAu0cii7A9haF/3PPYVarG62ZJQdRNcfjN6QgiSthBDFtNVMrKrbrURo0w
+# AhtA2i2tnVxJn4ybD4u3Y3frC6yW8suGD9neDoC6nWeHP00wu1WnIbBij5lXOk4n
+# biqrGw1WFog9f8Ik72sP8/Kr3r/xHe5WIEM4zVi0XVeACaqVx6dozJoq5OPpEWx5
+# xnUSL2prOnTFz7TOOHRLaZRJ/ZmQi6keOHcpnRw=
 # SIG # End signature block
