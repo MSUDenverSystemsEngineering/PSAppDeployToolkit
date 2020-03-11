@@ -35,19 +35,22 @@ Remove-Item -Path "$Env:APPLICATION_PATH\.gitattributes" -Force -ErrorAction Sil
 Remove-Item -Path "$Env:APPLICATION_PATH\Tests" -Recurse
 Remove-Item -Path "$Env:APPLICATION_PATH\.git" -Recurse -Force
 
-## Sign the PowerShell file to allow running the script directly with a RemoteSigned execution policy
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert `
-  -HashAlgorithm SHA256 `
-  -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitExtensions.ps1" $cert `
-  -HashAlgorithm SHA256 `
-  -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitHelp.ps1" $cert `
-  -HashAlgorithm SHA256 `
-  -TimestampServer "$timestampServer"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitMain.ps1" $cert `
-  -HashAlgorithm SHA256  `
-  -TimestampServer "$timestampServer"
+## Sign PowerShell files to allow running the script directly with a RemoteSigned execution policy
+Get-ChildItem  "$Env:APPLICATION_PATH\AppDeployToolkit" `
+  | Where-Object { $_.Name -like ".ps1" } `
+    | ForEach-Object `
+      { Set-AuthenticodeSignature $_.FullName $cert `
+        -HashAlgorithm SHA256 `
+        -TimestampServer "http://timestamp.comodoca.com" `
+      }
+
+Get-ChildItem  "$Env:APPLICATION_PATH" `
+  | Where-Object { $_.Name -like "Deploy-Application.ps1" } `
+    | ForEach-Object `
+      { Set-AuthenticodeSignature $_.FullName $cert `
+        -HashAlgorithm SHA256 `
+        -TimestampServer "http://timestamp.comodoca.com" `
+      }
 
 $contentLocation = "$Env:stagingContentLocation\$appName"
 
@@ -82,7 +85,7 @@ If ($null -eq (Get-PSDrive -Name $Env:siteCode -PSProvider CMSite -ErrorAction S
 ## Set the active PSDrive to the ConfigMgr site code
 Set-Location "$($Env:siteCode):\" @initParams
 
-## Create the ConfigMgr application (if if doesn't exist) in the format "Staging - GitHub project name"
+## Create the ConfigMgr application (if it doesn't exist) in the format "Staging - GitHub project name"
 ## This also adds a link to the GitHub repository in the Administrator Comments field for reference and checks the box next to "Allow this application to be installed from the Install Application task sequence action without being deployed"
 ## Reference: https://docs.microsoft.com/en-us/powershell/module/configurationmanager/new-cmapplication
 If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) `
@@ -100,10 +103,10 @@ If ((Get-CMApplication -Name $appName -ErrorAction SilentlyContinue) `
 
 Get-CMApplication -Name $appName | `
   Set-CMApplication -Description "Repository: https://github.com/$Env:APPVEYOR_REPO_NAME" `
-  -ReleaseDate $(Get-Date -Format d) `
-  -Owner $author `
-  -SupportContact 'System Engineers' `
-  -AutoInstall $True
+    -ReleaseDate $(Get-Date -Format d) `
+    -Owner $author `
+    -SupportContact 'System Engineers' `
+    -AutoInstall $True
 
 ## Create a new script deployment type with standard settings for PowerShell App Deployment Toolkit
 ## You'll need to manually update the deployment type's detection method to find the software, make any other needed customizations to the application and deployment type, then distribute your content when ready.
@@ -128,8 +131,8 @@ Get-CMApplication -Name $appName | `
 # SIG # Begin signature block
 # MIIkqQYJKoZIhvcNAQcCoIIkmjCCJJYCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB/nUGIQ3oftCOQ
-# zyjRnZqYrbzjeqkpGqP+TORrErIcdKCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCNteYJ9n4GIxtJ
+# ixCjEVEVJuIDDz26BIC1aCT7ZZasYqCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
 # H1IKS8YkJqdLMA0GCSqGSIb3DQEBBQUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQK
 # EwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5l
 # dHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDUw
@@ -303,23 +306,23 @@ Get-CMApplication -Name $appName | `
 # JTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0ECEAcDcdEPeVpA
 # cZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIBDDEKMAigAoAA
 # oQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4w
-# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgOE0ntm79rJPz6Zd9FIe5pYdS
-# wX/VjRxIKrI6HpXhzJowDQYJKoZIhvcNAQEBBQAEggEAELmxbBrGhvL82k/YLnkM
-# UqFmt4DDIYbGpzFjZVeCUm9x2k90pwflDHiAhYmuV+zFDAioFoi7zIYQMAnqexyn
-# bCrBdp5ExttwKtVr7WYihGV7BO+SkITjbfrqu/35n91jbLajlwnJgvMGcxVAL+5g
-# fONS/bjY4bqPI8BlojhpMy2iyzpSLksL/hL4i6sGYRaQgl37UM0PeuxEz28azLtb
-# TpHXN3BXRrdgK/89LlASNLm8ST+dN99ywUMd0U0Sd+PMxTqeihBxVhRT9U6eRWFi
-# Rn6lBxweHnarovEkRgDzCDM+r0vwobgKiV4KLk5cpJvpZ92iYnHYiMPFRvJ7FQI9
-# KaGCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
+# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgNRtcWV3cm/FSB/QDiJjAPxUT
+# CpuZaPhfpcPFrgH1hYAwDQYJKoZIhvcNAQEBBQAEggEAnS8i+VyaCRreHIjW/hAG
+# KFihdu5s8VDz3GjY6klbSDrqix61ORqr9NLcyZ/OBXo4/OijMc4oF9cdGfnlGUeZ
+# 0H+rL5LGO8QXL4s5kaIzjuDCyePgBww5E6a4k4UfKbxsqeEFsqpK3rYPbE6FUc6t
+# ccKy5iD1nXigHMdsCAMdC1yADShROWJXIIQ0IKDAtAsC5kuyouxeq5uU2U2PQ+eg
+# caXXtReLCmRgcbPfmDv/XB2uAj6fe8B0Zxck9ZD6+EnjtZyimGvUABHQ9yTCCIoB
+# E27K0JpkizBiC8MlNkCQWgnLcrwHcm1DdoDna1N0fyaf1whXLavkPSGuhjBDoh7R
+# DKGCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
 # QjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3Jk
 # MRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEgMB4GA1UEAxMXQ09NT0RPIFRp
 # bWUgU3RhbXBpbmcgQ0ECECtz23RjEUxaWzJK8jBXckkwCQYFKw4DAhoFAKBdMBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE0
-# NTMyN1owIwYJKoZIhvcNAQkEMRYEFFsfcfK001uJPzTOF0vQwRtecaUaMA0GCSqG
-# SIb3DQEBAQUABIIBAGLY3gqIlVlmkSIKR+jsvnAMSAXwtoD7o++U5KdzR8NagfXM
-# ou3m6heNjnhRASKhYlBpOvCECu9HoJaRmucCBX1AzNrAQAzf7sWFKXSfUYjsIfXw
-# D/y6/KBAu0cii7A9haF/3PPYVarG62ZJQdRNcfjN6QgiSthBDFtNVMrKrbrURo0w
-# AhtA2i2tnVxJn4ybD4u3Y3frC6yW8suGD9neDoC6nWeHP00wu1WnIbBij5lXOk4n
-# biqrGw1WFog9f8Ik72sP8/Kr3r/xHe5WIEM4zVi0XVeACaqVx6dozJoq5OPpEWx5
-# xnUSL2prOnTFz7TOOHRLaZRJ/ZmQi6keOHcpnRw=
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE1
+# MDQzMFowIwYJKoZIhvcNAQkEMRYEFBlfo+p2PHlcHix27sa7C6+Y06iyMA0GCSqG
+# SIb3DQEBAQUABIIBAGL8yqishLgga2JF1J8KKewBOLkly2JJRNiqBZGcoYXBSIaA
+# BCyI+MWDmnQjNheAkWobEpVBDtbDUsFp/evEXjyUYKW+qz7XuxJvPXbCcFdp/IxM
+# U3yaDB5ZVGcE0+T+2g6j7eyNRwWZzdk8WNevjOvJzSCfrzfoUtKcxtwjUwjjH9IS
+# WH6BnJwbdP/Jixihc6ITmOaU8pgxITH+wAjIxTBrSD0poGk90dBnYIN9CSPN5lcp
+# G7Vh/LNw9R8hzIV0RyyuxwxKyAs/Y3BLMtjYilOJB2TNKypLVyHo1j4nB2ItQbLz
+# wA/WcGTeVy6LN7hkYaLWg9tAdUN7jetnjY7xMUw=
 # SIG # End signature block
