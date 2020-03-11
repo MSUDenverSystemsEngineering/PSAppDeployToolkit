@@ -3,6 +3,7 @@ $fileShare = New-PSSession -ComputerName $Env:serverName
 
 $stagingDir = $Env:stagingDirectory
 $cert = (Get-ChildItem Cert:\LocalMachine\My -CodeSigningCert)
+$timestampServer =  "http://timestamp.comodoca.com"
 
 $initParams = @{}
 ## Uncomment the next line for debugging
@@ -10,7 +11,7 @@ $initParams = @{}
 
 ## Set application properties
 $appName = $Env:APPVEYOR_PROJECT_NAME
-$appName = $appName -replace '-',' ' -replace '_',' '
+$appName = $appName -replace "_+"," " -replace "\-{2,}"," - " -replace "\b-\b"," "
 $install = "Deploy-Application.exe -DeploymentType `"Install`" -AllowRebootPassThru"
 $uninstall = "Deploy-Application.exe -DeploymentType `"Uninstall`" -AllowRebootPassThru"
 
@@ -35,10 +36,10 @@ Remove-Item -Path "$Env:APPLICATION_PATH\Tests" -Recurse
 Remove-Item -Path "$Env:APPLICATION_PATH\.git" -Recurse -Force
 
 ## Sign the PowerShell file to allow running the script directly with a RemoteSigned execution policy
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.globalsign.com/scripts/timestamp.dll"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitExtensions.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.globalsign.com/scripts/timestamp.dll"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitHelp.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.globalsign.com/scripts/timestamp.dll"
-Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitMain.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.globalsign.com/scripts/timestamp.dll"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\Deploy-Application.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitExtensions.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitHelp.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
+Set-AuthenticodeSignature "$Env:APPLICATION_PATH\AppDeployToolkit\AppDeployToolkitMain.ps1" $cert -HashAlgorithm SHA256 -TimestampServer "$timestampServer"
 
 $contentLocation = "$Env:stagingContentLocation\$appName"
 
@@ -96,8 +97,8 @@ Get-CMApplication -Name $appName | Add-CMScriptDeploymentType -DeploymentTypeNam
 # SIG # Begin signature block
 # MIIkqQYJKoZIhvcNAQcCoIIkmjCCJJYCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDukHg9aLhunfHd
-# XfPtSWBoKreDqblQDyj8J+KiCG20FqCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAWoZWyjBd4krq8
+# gJkQQet7XrSyv5jaGFlFzanT87fGZqCCH5AwggSEMIIDbKADAgECAhBCGvKUCYQZ
 # H1IKS8YkJqdLMA0GCSqGSIb3DQEBBQUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQK
 # EwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5l
 # dHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDUw
@@ -271,23 +272,23 @@ Get-CMApplication -Name $appName | Add-CMScriptDeploymentType -DeploymentTypeNam
 # JTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0ECEAcDcdEPeVpA
 # cZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIBDDEKMAigAoAA
 # oQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4w
-# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgX8C/fx7gZUfO6/oCv3Qye0v5
-# jAfp+yyr4/z8T76zGYMwDQYJKoZIhvcNAQEBBQAEggEAkpKEWt9HstqZqiRvvfyD
-# 0Lf7LJJIp8UHphQFPmjjQz36ezEx9GZNCkieAT//wjO990hUoF7oO6ttb3mqJSBb
-# MafczghhuZTwpfeHpE4qi/RwQKxAPNKGHDgZ3JJUCT14vg6/oOZepGMTv/R6qGdn
-# 9dQ8phBjGq74e7pXM5OYa05fHBZq6rLmbFP8+X8y1JX6ZeY/BQ0oBLTUEKxMU9Kz
-# Rj4bz0YsszV7+DyO6dfTqPTjYZGjvkfsR6xLzu+qBD6IBFpfPmxOEYoalKpgHsbz
-# QeWJzbHM9LCPiimG6DnqGpTeEVr+eAupjRZS25Bmq55m2WfwSGupWoVpWMsfSY02
-# 06GCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
+# DAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgixiUnsCla0/mQ6sMJy39OwpB
+# tlgtaWm1ZSUYOAnzYwgwDQYJKoZIhvcNAQEBBQAEggEAWGfXBjmiWksRUYb1EKtP
+# k0LdjtzhJgUHcExtvs74PQocQdDctcVHckQQy9r9jY8hOWfnoZnQuTabt5MMbt8K
+# q1Ix2gyuE/dbL6v6f7VkS0DRASmTp2GDLIVmedXk9JVYw6UQ05NhS6YbuQEIHDOA
+# fYCfddcWdhc9gYHeRcJau5I27TFPjsevTZqdxULGRQ8TeKUMdp/Pg/40IffJmwT6
+# kxz4UURdkx3NHGAyc4hqwXyS9ei9jX146Xg3e2mAuGVf34KSDhArzQEW++G+xpo5
+# LdT1IFyXU/xGUj2jgMw+S8vJf0AftVorloo3RqmTpKhdb0+wKkgAwgee25k3BzCD
+# k6GCAigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB6MQswCQYDVQQGEwJH
 # QjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3Jk
 # MRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEgMB4GA1UEAxMXQ09NT0RPIFRp
 # bWUgU3RhbXBpbmcgQ0ECECtz23RjEUxaWzJK8jBXckkwCQYFKw4DAhoFAKBdMBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTEz
-# NDk1OVowIwYJKoZIhvcNAQkEMRYEFLs0oFPpdY5Zy2RMrb/sliD0HfsEMA0GCSqG
-# SIb3DQEBAQUABIIBAJ5b2lgL05mlv78SBk2+yriI+IwUZ4q3sCTZvUCdTV724A12
-# rfA8sWmd/lzdHinOI4t+hEuCnWcMv+0rxEM2sQOKc/CN9bb/1qDMQBHtiJBghsHC
-# RVxA+gU8c02B4rp08Og/o7972/ujPAsd98FYgZkycLhUY+ZbIJFfZG9pbWLjnJW2
-# l/7jhpiLvRqEAuWsawnMvZn57jyGDKskfPzstmqVPIeZdRfeq5mZ1d7tEAl2BKwg
-# ysURs2v0N8gH/bmELw0aKiA0bxm9esF2p6cCTk2y8FsNJGGeSKXQD93/oXvPnLml
-# j4GsvCi7EsAEAbtxzoapnFU8t5HZIbiJ6vX/SOs=
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDMxMTE0
+# NDMwNVowIwYJKoZIhvcNAQkEMRYEFG0g8jAP1q4so0AgXd8pktqHC7eqMA0GCSqG
+# SIb3DQEBAQUABIIBAF7j2NyP/RcVqWAM7mOoifo8oLnbEKCAkeWbtximlgIss72K
+# bIiOtJvOV7v+ynQCiYrSTV/SxcBIRc0kua8KDkxhFV2J9uYQZ9el1kOucLtYYxtH
+# 5B4Wo98vrV0/QwH9wici8u9kbPBib/evK570pBuOFkuMxij/g+THVkOp1T2XouBG
+# 9/cX15VwmmQfyp9SphB6uTuyaii2oAEyWWIiQwuhx1pg9Kpil3glm4OzMpAOm67S
+# LeOKNp416VjsUz9FjapooU0PUS4NBnNHRb4JdVKjMnOYt3bnQKSEHWPW3TrU/THC
+# wyul4j2E2UNUuPe4n0A2F3SWv6fea9LuBPYxSgw=
 # SIG # End signature block
