@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	This script contains the functions and logic engine for the Deploy-Application.ps1 script.
 	# LICENSE #
@@ -70,9 +70,9 @@ Param (
 [string]$appDeployMainScriptFriendlyName = 'App Deploy Toolkit Main'
 
 ## Variables: Script Info
-[version]$appDeployMainScriptVersion = [version]'3.8.0'
-[version]$appDeployMainScriptMinimumConfigVersion = [version]'3.8.0'
-[string]$appDeployMainScriptDate = '23/09/2019'
+[version]$appDeployMainScriptVersion = [version]'3.8.1'
+[version]$appDeployMainScriptMinimumConfigVersion = [version]'3.8.1'
+[string]$appDeployMainScriptDate = '28/03/2020'
 [hashtable]$appDeployMainScriptParameters = $PSBoundParameters
 
 ## Variables: Datetime and Culture
@@ -385,6 +385,7 @@ if ($appDeployLogoBannerHeight -gt $appDeployLogoBannerMaxHeight) {
 	[string]$configBalloonTextError = $xmlUIMessages.BalloonText_Error
 	[string]$configProgressMessageInstall = $xmlUIMessages.Progress_MessageInstall
 	[string]$configProgressMessageUninstall = $xmlUIMessages.Progress_MessageUninstall
+	[string]$configProgressMessageRepair = $xmlUIMessages.Progress_MessageRepair
 	[string]$configClosePromptMessage = $xmlUIMessages.ClosePrompt_Message
 	[string]$configClosePromptButtonClose = $xmlUIMessages.ClosePrompt_ButtonClose
 	[string]$configClosePromptButtonDefer = $xmlUIMessages.ClosePrompt_ButtonDefer
@@ -399,6 +400,7 @@ if ($appDeployLogoBannerHeight -gt $appDeployLogoBannerMaxHeight) {
 	[string]$configBlockExecutionMessage = $xmlUIMessages.BlockExecution_Message
 	[string]$configDeploymentTypeInstall = $xmlUIMessages.DeploymentType_Install
 	[string]$configDeploymentTypeUnInstall = $xmlUIMessages.DeploymentType_UnInstall
+	[string]$configDeploymentTypeRepair = $xmlUIMessages.DeploymentType_Repair
 	[string]$configRestartPromptTitle = $xmlUIMessages.RestartPrompt_Title
 	[string]$configRestartPromptMessage = $xmlUIMessages.RestartPrompt_Message
 	[string]$configRestartPromptMessageTime = $xmlUIMessages.RestartPrompt_MessageTime
@@ -657,7 +659,7 @@ Function Write-Log {
 		[int16]$Severity = 1,
 		[Parameter(Mandatory=$false,Position=2)]
 		[ValidateNotNull()]
-		[string]$Source = '',
+		[string]$Source = 'Unknown',
 		[Parameter(Mandatory=$false,Position=3)]
 		[ValidateNotNullorEmpty()]
 		[string]$ScriptSection = $script:installPhase,
@@ -869,6 +871,47 @@ Function Write-Log {
 }
 #endregion
 
+#region Function Remove-InvalidFileNameChars
+Function Remove-InvalidFileNameChars {
+	<#
+	.SYNOPSIS
+		Remove invalid characters from the supplied string.
+	.DESCRIPTION
+		Remove invalid characters from the supplied string and returns a valid filename as a string.
+	.EXAMPLE
+		Remove-InvalidFileNameChars -Name "Filename/\1"
+	.NOTES
+		This functions always returns a string however it can be empty if the name only contains invalid characters.
+		Do no use this command for an entire path as '\' is not a valid filename character.
+	.LINK
+		http://psappdeploytoolkit.com
+	#>
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$true,Position=0,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
+		[AllowEmptyString()]
+		[string]$Name
+	)
+
+	Begin {
+		## Get the name of this function and write header
+		[string]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
+		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
+	}
+	Process {
+		Try {
+			Write-Output -InputObject (([char[]]$Name | Where-Object { [IO.Path]::GetinvalidFileNameChars() -notcontains $_ }) -join '')
+		}
+		Catch {
+			Write-Log -Message "Failed to remove invalid characters from the supplied filename. `n$(Resolve-Error)" -Severity 3 -Source ${CmdletName}
+		}
+	}
+	End {
+		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
+	}
+}
+#endregion
+
 
 #region Function New-ZipFile
 Function New-ZipFile {
@@ -931,6 +974,11 @@ Function New-ZipFile {
 	}
 	Process {
 		Try {
+			## Remove invalid characters from the supplied filename
+			$DestinationArchiveFileName = Remove-InvalidFileNameChars -Name $DestinationArchiveFileName
+			If ($DestinationArchiveFileName.length -eq 0) {
+				Throw "Invalid filename characters replacement resulted into an empty string."
+			}
 			## Get the full destination path where the archive will be stored
 			[string]$DestinationPath = Join-Path -Path $DestinationArchiveDirectoryPath -ChildPath $DestinationArchiveFileName -ErrorAction 'Stop'
 			Write-Log -Message "Create a zip archive with the requested content at destination path [$DestinationPath]." -Source ${CmdletName}
@@ -2041,6 +2089,7 @@ Function Get-InstalledApplication {
 			Write-Log -Message "The following error(s) took place while enumerating installed applications from the registry. `n$(Resolve-Error -ErrorRecord $ErrorUninstallKeyPath)" -Severity 2 -Source ${CmdletName}
 		}
 
+		$UpdatesSkippedCounter = 0
 		## Create a custom object with the desired properties for the installed applications and sanitize property details
 		[psobject[]]$installedApplication = @()
 		ForEach ($regKeyApp in $regKeyApplication) {
@@ -2050,18 +2099,15 @@ Function Get-InstalledApplication {
 				[string]$appPublisher = ''
 
 				## Bypass any updates or hotfixes
-				If (-not $IncludeUpdatesAndHotfixes) {
-					If ($regKeyApp.DisplayName -match '(?i)kb\d+') { Continue }
-					If ($regKeyApp.DisplayName -match 'Cumulative Update') { Continue }
-					If ($regKeyApp.DisplayName -match 'Security Update') { Continue }
-					If ($regKeyApp.DisplayName -match 'Hotfix') { Continue }
+				If ((-not $IncludeUpdatesAndHotfixes) -and (($regKeyApp.DisplayName -match '(?i)kb\d+') -or ($regKeyApp.DisplayName -match 'Cumulative Update') -or ($regKeyApp.DisplayName -match 'Security Update') -or ($regKeyApp.DisplayName -match 'Hotfix'))) {
+					$UpdatesSkippedCounter += 1
+					Continue
 				}
 
-				## Remove any control characters which may interfere with logging and creating file path names from these variables
-				$illegalChars = [string][System.IO.Path]::GetInvalidFileNameChars()
-				$appDisplayName = $regKeyApp.DisplayName -replace $illegalChars,''
-				$appDisplayVersion = $regKeyApp.DisplayVersion -replace $illegalChars,''
-				$appPublisher = $regKeyApp.Publisher -replace $illegalChars,''
+				## Remove any invalid filename characters which may interfere with logging and creating file path names from these variables
+				$appDisplayName = Remove-InvalidFileNameChars -Name $regKeyApp.DisplayName
+				$appDisplayVersion = Remove-InvalidFileNameChars -Name $regKeyApp.DisplayVersion
+				$appPublisher = Remove-InvalidFileNameChars -Name $regKeyApp.Publisher
 
 
 				## Determine if application is a 64-bit application
@@ -2138,6 +2184,19 @@ Function Get-InstalledApplication {
 				Write-Log -Message "Failed to resolve application details from registry for [$appDisplayName]. `n$(Resolve-Error)" -Severity 3 -Source ${CmdletName}
 				Continue
 			}
+		}
+
+		If (-not $IncludeUpdatesAndHotfixes) {
+			## Write to log the number of entries skipped due to them being considered updates
+			If ($UpdatesSkippedCounter -eq 1) {
+				Write-Log -Message "Skipped 1 entry while searching, because it was considered a Microsoft update." -Source ${CmdletName}
+			} else {
+				Write-Log -Message "Skipped $UpdatesSkippedCounter entries while searching, because they were considered Microsoft updates." -Source ${CmdletName}
+			}
+		}
+
+		If (-not $installedApplication) {
+			Write-Log -Message "Found no application based on the supplied parameters." -Source ${CmdletName}
 		}
 
 		Write-Output -InputObject $installedApplication
@@ -2283,10 +2342,10 @@ Function Execute-MSI {
 			If (-not $logName) {
 				If ($productCodeNameVersion) {
 					If ($productCodeNameVersion.Publisher) {
-						$logName = ($productCodeNameVersion.Publisher + '_' + $productCodeNameVersion.DisplayName + '_' + $productCodeNameVersion.DisplayVersion) -replace "[$invalidFileNameChars]",'' -replace ' ',''
+						$logName = (Remove-InvalidFileNameChars -Name ($productCodeNameVersion.Publisher + '_' + $productCodeNameVersion.DisplayName + '_' + $productCodeNameVersion.DisplayVersion)) -replace ' ',''
 					}
 					Else {
-						$logName = ($productCodeNameVersion.DisplayName + '_' + $productCodeNameVersion.DisplayVersion) -replace "[$invalidFileNameChars]",'' -replace ' ',''
+						$logName = (Remove-InvalidFileNameChars -Name ($productCodeNameVersion.DisplayName + '_' + $productCodeNameVersion.DisplayVersion)) -replace ' ',''
 					}
 				}
 				Else {
@@ -2595,10 +2654,6 @@ Function Remove-MSIApplications {
 		[Collections.ArrayList]$removeMSIApplications = New-Object -TypeName 'System.Collections.ArrayList'
 		If (($null -ne $installedApplications) -and ($installedApplications.Count)) {
 			ForEach ($installedApplication in $installedApplications) {
-				If ($installedApplication.UninstallString -notmatch 'msiexec') {
-					Write-Log -Message "Skipping removal of application [$($installedApplication.DisplayName)] because uninstall string [$($installedApplication.UninstallString)] does not match `"msiexec`"." -Severity 2 -Source ${CmdletName}
-					Continue
-				}
 				If ([string]::IsNullOrEmpty($installedApplication.ProductCode)) {
 					Write-Log -Message "Skipping removal of application [$($installedApplication.DisplayName)] because unable to discover MSI ProductCode from application's registry Uninstall subkey [$($installedApplication.UninstallSubkey)]." -Severity 2 -Source ${CmdletName}
 					Continue
@@ -3259,9 +3314,11 @@ Function Remove-Folder {
 .SYNOPSIS
 	Remove folder and files if they exist.
 .DESCRIPTION
-	Remove folder and all files recursively in a given path.
+	Remove folder and all files with or without recursion in a given path.
 .PARAMETER Path
 	Path to the folder to remove.
+.PARAMETER DisableRecursion
+	Disables recursion while deleting.
 .PARAMETER ContinueOnError
 	Continue if an error is encountered. Default is: $true.
 .EXAMPLE
@@ -3276,6 +3333,8 @@ Function Remove-Folder {
 		[ValidateNotNullorEmpty()]
 		[string]$Path,
 		[Parameter(Mandatory=$false)]
+		[switch]$DisableRecursion,
+		[Parameter(Mandatory=$false)]
 		[ValidateNotNullOrEmpty()]
 		[boolean]$ContinueOnError = $true
 	)
@@ -3288,8 +3347,14 @@ Function Remove-Folder {
 	Process {
 			If (Test-Path -LiteralPath $Path -PathType 'Container') {
 				Try {
-					Write-Log -Message "Delete folder [$path] recursively..." -Source ${CmdletName}
-					Remove-Item -LiteralPath $Path -Force -Recurse -ErrorAction 'SilentlyContinue' -ErrorVariable '+ErrorRemoveFolder'
+					If ($DisableRecursion) {
+						Write-Log -Message "Delete folder [$path] without recursion..." -Source ${CmdletName}
+						Remove-Item -LiteralPath $Path -Force -ErrorAction 'SilentlyContinue' -ErrorVariable '+ErrorRemoveFolder'
+					} else {
+						Write-Log -Message "Delete folder [$path] recursively..." -Source ${CmdletName}
+						Remove-Item -LiteralPath $Path -Force -Recurse -ErrorAction 'SilentlyContinue' -ErrorVariable '+ErrorRemoveFolder'
+					}
+
 					If ($ErrorRemoveFolder) {
 						Write-Log -Message "The following error(s) took place while deleting folder(s) and file(s) recursively from path [$path]. `n$(Resolve-Error -ErrorRecord $ErrorRemoveFolder)" -Severity 2 -Source ${CmdletName}
 					}
@@ -4489,6 +4554,8 @@ Function Get-FileVersion {
 	Gets the version of the specified file
 .PARAMETER File
 	Path of the file
+.PARAMETER ProductVersion
+	Switch that makes the command return ProductVersion instead of FileVersion
 .PARAMETER ContinueOnError
 	Continue if an error is encountered. Default is: $true.
 .EXAMPLE
@@ -4503,6 +4570,8 @@ Function Get-FileVersion {
 		[ValidateNotNullorEmpty()]
 		[string]$File,
 		[Parameter(Mandatory=$false)]
+		[switch]$ProductVersion,
+		[Parameter(Mandatory=$false)]
 		[ValidateNotNullOrEmpty()]
 		[boolean]$ContinueOnError = $true
 	)
@@ -4514,19 +4583,29 @@ Function Get-FileVersion {
 	}
 	Process {
 		Try {
-			Write-Log -Message "Get file version info for file [$file]." -Source ${CmdletName}
+			Write-Log -Message "Get version info for file [$file]." -Source ${CmdletName}
 
 			If (Test-Path -LiteralPath $File -PathType 'Leaf') {
-				$fileVersion = (Get-Command -Name $file -ErrorAction 'Stop').FileVersionInfo.FileVersion
-				If ($fileVersion) {
-					## Remove product information to leave only the file version
-					$fileVersion = ($fileVersion -split ' ' | Select-Object -First 1)
+				$fileVersionInfo = (Get-Command -Name $file -ErrorAction 'Stop').FileVersionInfo
+				If ($ProductVersion) {
+					$fileVersion = $fileVersionInfo.ProductVersion
+				} else {
+					$fileVersion = $fileVersionInfo.FileVersion
+				}
 
-					Write-Log -Message "File version is [$fileVersion]." -Source ${CmdletName}
+				If ($fileVersion) {
+					If ($ProductVersion) {
+						Write-Log -Message "Product version is [$fileVersion]." -Source ${CmdletName}
+					}
+					else
+					{
+						Write-Log -Message "File version is [$fileVersion]." -Source ${CmdletName}
+					}
+
 					Write-Output -InputObject $fileVersion
 				}
 				Else {
-					Write-Log -Message 'No file version information found.' -Source ${CmdletName}
+					Write-Log -Message 'No version information found.' -Source ${CmdletName}
 				}
 			}
 			Else {
@@ -4534,9 +4613,9 @@ Function Get-FileVersion {
 			}
 		}
 		Catch {
-			Write-Log -Message "Failed to get file version info. `n$(Resolve-Error)" -Severity 3 -Source ${CmdletName}
+			Write-Log -Message "Failed to get version info. `n$(Resolve-Error)" -Severity 3 -Source ${CmdletName}
 			If (-not $ContinueOnError) {
-				Throw "Failed to get file version info: $($_.Exception.Message)"
+				Throw "Failed to get version info: $($_.Exception.Message)"
 			}
 		}
 	}
@@ -4808,9 +4887,9 @@ Function Execute-ProcessAsUser {
 		If (($Path -eq 'PowerShell.exe') -or ((Split-Path -Path $Path -Leaf) -eq 'PowerShell.exe')) {
 			# Permit inclusion of double quotes in parameters
 			If ($($Parameters.Substring($Parameters.Length - 1)) -eq '"') {
-				[string]$executeProcessAsUserParametersVBS = 'chr(34) & ' + "`"$($Path)`"" + ' & chr(34) & ' + '" ' + ($Parameters -replace '"', "`" & chr(34) & `"" -replace ' & chr\(34\) & "$', '') + ' & chr(34)' }
+				[string]$executeProcessAsUserParametersVBS = 'chr(34) & ' + "`"$($Path)`"" + ' & chr(34) & ' + '" ' + ($Parameters -replace "`r`n", ';' -replace "`n", ';' -replace '"', "`" & chr(34) & `"" -replace ' & chr\(34\) & "$', '') + ' & chr(34)' }
 			Else {
-				[string]$executeProcessAsUserParametersVBS = 'chr(34) & ' + "`"$($Path)`"" + ' & chr(34) & ' + '" ' + ($Parameters -replace '"', "`" & chr(34) & `"" -replace ' & chr\(34\) & "$','') + '"' }
+				[string]$executeProcessAsUserParametersVBS = 'chr(34) & ' + "`"$($Path)`"" + ' & chr(34) & ' + '" ' + ($Parameters -replace "`r`n", ';' -replace "`n", ';' -replace '"', "`" & chr(34) & `"" -replace ' & chr\(34\) & "$','') + '"' }
 			[string[]]$executeProcessAsUserScript = "strCommand = $executeProcessAsUserParametersVBS"
 			$executeProcessAsUserScript += 'set oWShell = CreateObject("WScript.Shell")'
 			$executeProcessAsUserScript += 'intReturn = oWShell.Run(strCommand, 0, true)'
@@ -6301,8 +6380,12 @@ Function Show-WelcomePrompt {
 			[timespan]$remainingTime = $countdownTime.Subtract($currentTime)
 			[string]$labelCountdownSeconds = [string]::Format('{0}:{1:d2}:{2:d2}', $remainingTime.Days * 24 + $remainingTime.Hours, $remainingTime.Minutes, $remainingTime.Seconds)
 			If ($forceCountdown -eq $true) {
-				If ($deploymentType -ieq 'Install') { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeInstall.ToLower())) + "`n$labelCountdownSeconds" }
-				Else { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeUninstall.ToLower())) + "`n$labelCountdownSeconds" }
+				switch ($deploymentType){
+					'Install' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeInstall.ToLower())) + "`n$labelCountdownSeconds" }
+					'Uninstall' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeUninstall.ToLower())) + "`n$labelCountdownSeconds" }
+					'Repair' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeRepair.ToLower())) + "`n$labelCountdownSeconds" }
+					Default { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $($configDeploymentTypeInstall.ToLower())) + "`n$labelCountdownSeconds" }
+				}
 			}
 			Else { $labelCountdown.Text = "$configClosePromptCountdownMessage`n$labelCountdownSeconds" }
 		}
@@ -6336,8 +6419,12 @@ Function Show-WelcomePrompt {
 					#  Update the form
 					[string]$labelCountdownSeconds = [string]::Format('{0}:{1:d2}:{2:d2}', $remainingTime.Days * 24 + $remainingTime.Hours, $remainingTime.Minutes, $remainingTime.Seconds)
 					If ($forceCountdown -eq $true) {
-						If ($deploymentType -ieq 'Install') { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeInstall) + "`n$labelCountdownSeconds" }
-						Else { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeUninstall) + "`n$labelCountdownSeconds" }
+						switch ($deploymentType){
+							'Install' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeInstall) + "`n$labelCountdownSeconds" }
+							'Uninstall' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeUninstall) + "`n$labelCountdownSeconds" }
+							'Repair' { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeRepair) + "`n$labelCountdownSeconds" }
+							Default { $labelCountdown.Text = ($configWelcomePromptCountdownMessage -f $configDeploymentTypeInstall) + "`n$labelCountdownSeconds" }
+						}
 					}
 					Else { $labelCountdown.Text = "$configClosePromptCountdownMessage`n$labelCountdownSeconds" }
 					[Windows.Forms.Application]::DoEvents()
@@ -7201,6 +7288,9 @@ Function Show-InstallationProgress {
 		If (($StatusMessage -eq $configProgressMessageInstall) -and ($deploymentType -eq 'Uninstall')) {
 			$StatusMessage = $configProgressMessageUninstall
 		}
+		If (($StatusMessage -eq $configProgressMessageInstall) -and ($deploymentType -eq 'Repair')) {
+			$StatusMessage = $configProgressMessageRepair
+		}
 
 		If ($envHost.Name -match 'PowerGUI') {
 			Write-Log -Message "$($envHost.Name) is not a supported host for WPF multi-threading. Progress dialog with message [$statusMessage] will not be displayed." -Severity 2 -Source ${CmdletName}
@@ -7318,6 +7408,18 @@ Function Show-InstallationProgress {
 				#  Parse the XAML
 				$progressReader = New-Object -TypeName 'System.Xml.XmlNodeReader' -ArgumentList $xamlProgress
 				$script:ProgressSyncHash.Window = [Windows.Markup.XamlReader]::Load($progressReader)
+				#  Grey out the X button
+				$script:ProgressSyncHash.Window.add_Loaded({
+					[IntPtr]$windowHandle = (New-Object -TypeName System.Windows.Interop.WindowInteropHelper -ArgumentList $this).Handle
+					If ($null -ne $windowHandle) {
+						[IntPtr]$menuHandle = [PSADT.UiAutomation]::GetSystemMenu($windowHandle, $false)
+						If ($menuHandle -ne [IntPtr]::Zero) {
+							[PSADT.UiAutomation]::EnableMenuItem($menuHandle, 0xF060, 0x00000001)
+							[PSADT.UiAutomation]::DestroyMenu($menuHandle)
+						}
+					}
+				})
+				#  Prepare the ProgressText variable so we can use it to change the text in the text area
 				$script:ProgressSyncHash.ProgressText = $script:ProgressSyncHash.Window.FindName('ProgressText')
 				#  Add an action to the Window.Closing event handler to disable the close button
 				$script:ProgressSyncHash.Window.Add_Closing({ $_.Cancel = $true })
@@ -7517,13 +7619,13 @@ Function Set-PinnedApplication {
 				Throw "Action [$Action] not supported. Supported actions are [$($Verbs.Keys -join ', ')]."
 			}
 
-			If ($Action -in 'PintoStartMenu', 'UnpinfromStartMenu')
+			If ($Action.Contains("StartMenu"))
 			{
 				If ([int]$envOSVersionMajor -ge 10)	{
 					If ((Get-Item -Path $FilePath).Extension -ne '.lnk') {
 						Throw "Only shortcut files (.lnk) are supported on Windows 10 and higher."
 					}
-					ElseIf (-not ($FilePath.StartsWith($envUserStartMenu) -or $FilePath.StartsWith($envCommonStartMenu))) {
+					ElseIf (-not ($FilePath.StartsWith($envUserStartMenu, 'CurrentCultureIgnoreCase') -or $FilePath.StartsWith($envCommonStartMenu, 'CurrentCultureIgnoreCase'))) {
 						Throw "Only shortcut files (.lnk) in [$envUserStartMenu] and [$envCommonStartMenu] are supported on Windows 10 and higher."
 					}
 				}
@@ -7535,7 +7637,7 @@ Function Set-PinnedApplication {
 
 				Invoke-Verb -FilePath $FilePath -Verb $PinVerbAction
 			}
-			ElseIf ($Action -in 'PintoTaskbar', 'UnpinfromTaskbar') {
+			ElseIf ($Action.Contains("Taskbar")) {
 				If ([int]$envOSVersionMajor -ge 10) {
 					$FileNameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
 					$PinExists = Test-Path -Path "$envAppData\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\$($FileNameWithoutExtension).lnk"
@@ -9647,7 +9749,7 @@ Function Set-ActiveSetup {
 
 				Write-Log -Message "Remove Active Setup entry [$HKCUActiveSetupKey] for all log on user registry hives on the system." -Source ${CmdletName}
 				[scriptblock]$RemoveHKCUActiveSetupKey = {
-					If (Test-Path -Path $HKCUActiveSetupKey) {
+					If (Get-RegistryKey -Key $HKCUActiveSetupKey -SID $UserProfile.SID) {
 						Remove-RegistryKey -Key $HKCUActiveSetupKey -SID $UserProfile.SID -Recurse
 					}
 				}
@@ -10631,14 +10733,16 @@ If (-not $installTitle) {
 	[string]$installTitle = ("$appVendor $appName $appVersion").Trim()
 }
 
+## Set Powershell window title, in case the window is visible
+$Host.UI.RawUI.WindowTitle = "$installTitle - $DeploymentType"
+
 ## Sanitize the application details, as they can cause issues in the script
-[char[]]$invalidFileNameChars = [IO.Path]::GetInvalidFileNameChars()
-[string]$appVendor = $appVendor -replace "[$invalidFileNameChars]",'' -replace ' ',''
-[string]$appName = $appName -replace "[$invalidFileNameChars]",'' -replace ' ',''
-[string]$appVersion = $appVersion -replace "[$invalidFileNameChars]",'' -replace ' ',''
-[string]$appArch = $appArch -replace "[$invalidFileNameChars]",'' -replace ' ',''
-[string]$appLang = $appLang -replace "[$invalidFileNameChars]",'' -replace ' ',''
-[string]$appRevision = $appRevision -replace "[$invalidFileNameChars]",'' -replace ' ',''
+[string]$appVendor = (Remove-InvalidFileNameChars -Name $appVendor) -replace ' ',''
+[string]$appName = (Remove-InvalidFileNameChars -Name $appName) -replace ' ',''
+[string]$appVersion = (Remove-InvalidFileNameChars -Name $appVersion) -replace ' ',''
+[string]$appArch = (Remove-InvalidFileNameChars -Name $appArch) -replace ' ',''
+[string]$appLang = (Remove-InvalidFileNameChars -Name $appLang) -replace ' ',''
+[string]$appRevision = (Remove-InvalidFileNameChars -Name $appRevision) -replace ' ',''
 
 ## Build the Installation Name
 If ($ReferredInstallName) { [string]$installName = $ReferredInstallName }
@@ -10650,7 +10754,7 @@ If (-not $installName) {
 		[string]$installName = $appVendor + '_' + $appName + '_' + $appVersion + '_' + $appLang + '_' + $appRevision
 	}
 }
-[string]$installName = $installName -replace "[$invalidFileNameChars]",'' -replace ' ',''
+[string]$installName = (Remove-InvalidFileNameChars -Name $installName) -replace ' ',''
 [string]$installName = $installName.Trim('_') -replace '[_]+','_'
 
 ## Set the Defer History registry path
@@ -10951,6 +11055,7 @@ Switch ($deployMode) {
 Switch ($deploymentType) {
 	'Install'   { $deploymentTypeName = $configDeploymentTypeInstall }
 	'Uninstall' { $deploymentTypeName = $configDeploymentTypeUnInstall }
+	'Repair' { $deploymentTypeName = $configDeploymentTypeRepair }
 	Default { $deploymentTypeName = $configDeploymentTypeInstall }
 }
 If ($deploymentTypeName) { Write-Log -Message "Deployment type is [$deploymentTypeName]." -Source $appDeployToolkitName }
@@ -10977,172 +11082,171 @@ If ($terminalServerMode) { Enable-TerminalServerInstallMode }
 ##*=============================================
 
 # SIG # Begin signature block
-# MIIfagYJKoZIhvcNAQcCoIIfWzCCH1cCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# MIIfLgYJKoZIhvcNAQcCoIIfHzCCHxsCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCjbHoVE4UAjkLt
-# MTPeGCJop91v79hXvF2rSyJQZDEwq6CCGdcwggQUMIIC/KADAgECAgsEAAAAAAEv
-# TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
-# YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
-# U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
-# MAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMT
-# H0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzIwggEiMA0GCSqGSIb3DQEB
-# AQUAA4IBDwAwggEKAoIBAQCU72X4tVefoFMNNAbrCR+3Rxhqy/Bb5P8npTTR94ka
-# v56xzRJBbmbUgaCFi2RaRi+ZoI13seK8XN0i12pn0LvoynTei08NsFLlkFvrRw7x
-# 55+cC5BlPheWMEVybTmhFzbKuaCMG08IGfaBMa1hFqRi5rRAnsP8+5X2+7UulYGY
-# 4O/F69gCWXh396rjUmtQkSnF/PfNk2XSYGEi8gb7Mt0WUfoO/Yow8BcJp7vzBK6r
-# kOds33qp9O/EYidfb5ltOHSqEYva38cUTOmFsuzCfUomj+dWuqbgz5JTgHT0A+xo
-# smC8hCAAgxuh7rR0BcEpjmLQR7H68FPMGPkuO/lwfrQlAgMBAAGjgeUwgeIwDgYD
-# VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFEbYPv/c
-# 477/g+b0hZuw3WrWFKnBMEcGA1UdIARAMD4wPAYEVR0gADA0MDIGCCsGAQUFBwIB
-# FiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzAzBgNVHR8E
-# LDAqMCigJqAkhiJodHRwOi8vY3JsLmdsb2JhbHNpZ24ubmV0L3Jvb3QuY3JsMB8G
-# A1UdIwQYMBaAFGB7ZhpFDZfKiVAvfQTNNKj//P1LMA0GCSqGSIb3DQEBBQUAA4IB
-# AQBOXlaQHka02Ukx87sXOSgbwhbd/UHcCQUEm2+yoprWmS5AmQBVteo/pSB204Y0
-# 1BfMVTrHgu7vqLq82AafFVDfzRZ7UjoC1xka/a/weFzgS8UY3zokHtqsuKlYBAIH
-# MNuwEl7+Mb7wBEj08HD4Ol5Wg889+w289MXtl5251NulJ4TjOJuLpzWGRCCkO22k
-# aguhg/0o69rvKPbMiF37CjsAq+Ah6+IvNWwPjjRFl+ui95kzNX7Lmoq7RU3nP5/C
-# 2Yr6ZbJux35l/+iS4SwxovewJzZIjyZvO+5Ndh95w+V/ljW8LQ7MAbCOf/9RgICn
-# ktSzREZkjIdPFmMHMUtjsN/zMIIEnzCCA4egAwIBAgISESHWmadklz7x+EJ+6RnM
-# U0EUMA0GCSqGSIb3DQEBBQUAMFIxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i
-# YWxTaWduIG52LXNhMSgwJgYDVQQDEx9HbG9iYWxTaWduIFRpbWVzdGFtcGluZyBD
-# QSAtIEcyMB4XDTE2MDUyNDAwMDAwMFoXDTI3MDYyNDAwMDAwMFowYDELMAkGA1UE
-# BhMCU0cxHzAdBgNVBAoTFkdNTyBHbG9iYWxTaWduIFB0ZSBMdGQxMDAuBgNVBAMT
-# J0dsb2JhbFNpZ24gVFNBIGZvciBNUyBBdXRoZW50aWNvZGUgLSBHMjCCASIwDQYJ
-# KoZIhvcNAQEBBQADggEPADCCAQoCggEBALAXrqLTtgQwVh5YD7HtVaTWVMvY9nM6
-# 7F1eqyX9NqX6hMNhQMVGtVlSO0KiLl8TYhCpW+Zz1pIlsX0j4wazhzoOQ/DXAIlT
-# ohExUihuXUByPPIJd6dJkpfUbJCgdqf9uNyznfIHYCxPWJgAa9MVVOD63f+ALF8Y
-# ppj/1KvsoUVZsi5vYl3g2Rmsi1ecqCYr2RelENJHCBpwLDOLf2iAKrWhXWvdjQIC
-# KQOqfDe7uylOPVOTs6b6j9JYkxVMuS2rgKOjJfuv9whksHpED1wQ119hN6pOa9PS
-# UyWdgnP6LPlysKkZOSpQ+qnQPDrK6Fvv9V9R9PkK2Zc13mqF5iMEQq8CAwEAAaOC
-# AV8wggFbMA4GA1UdDwEB/wQEAwIHgDBMBgNVHSAERTBDMEEGCSsGAQQBoDIBHjA0
-# MDIGCCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0
-# b3J5LzAJBgNVHRMEAjAAMBYGA1UdJQEB/wQMMAoGCCsGAQUFBwMIMEIGA1UdHwQ7
-# MDkwN6A1oDOGMWh0dHA6Ly9jcmwuZ2xvYmFsc2lnbi5jb20vZ3MvZ3N0aW1lc3Rh
-# bXBpbmdnMi5jcmwwVAYIKwYBBQUHAQEESDBGMEQGCCsGAQUFBzAChjhodHRwOi8v
-# c2VjdXJlLmdsb2JhbHNpZ24uY29tL2NhY2VydC9nc3RpbWVzdGFtcGluZ2cyLmNy
-# dDAdBgNVHQ4EFgQU1KKESjhaGH+6TzBQvZ3VeofWCfcwHwYDVR0jBBgwFoAURtg+
-# /9zjvv+D5vSFm7DdatYUqcEwDQYJKoZIhvcNAQEFBQADggEBAI+pGpFtBKY3IA6D
-# lt4j02tuH27dZD1oISK1+Ec2aY7hpUXHJKIitykJzFRarsa8zWOOsz1QSOW0zK7N
-# ko2eKIsTShGqvaPv07I2/LShcr9tl2N5jES8cC9+87zdglOrGvbr+hyXvLY3nKQc
-# MLyrvC1HNt+SIAPoccZY9nUFmjTwC1lagkQ0qoDkL4T2R12WybbKyp23prrkUNPU
-# N7i6IA7Q05IqW8RZu6Ft2zzORJ3BOCqt4429zQl3GhC+ZwoCNmSIubMbJu7nnmDE
-# Rqi8YTNsz065nLlq8J83/rU9T5rTTf/eII5Ol6b9nwm8TcoYdsmwTYVQ8oDSHQb1
-# WAQHsRgwggV3MIIEX6ADAgECAhAT6ihwW/Ts7Qw2YwmAYUM2MA0GCSqGSIb3DQEB
-# DAUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRUcnVzdCBBQjEmMCQGA1UE
-# CxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsxIjAgBgNVBAMTGUFkZFRy
-# dXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDAwNTMwMTA0ODM4WhcNMjAwNTMwMTA0
-# ODM4WjCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNV
-# BAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsx
-# LjAsBgNVBAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkw
-# ggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCAEmUXNg7D2wiz0KxXDXbt
-# zSfTTK1Qg2HiqiBNCS1kCdzOiZ/MPans9s/B3PHTsdZ7NygRK0faOca8Ohm0X6a9
-# fZ2jY0K2dvKpOyuR+OJv0OwWIJAJPuLodMkYtJHUYmTbf6MG8YgYapAiPLz+E/CH
-# FHv25B+O1ORRxhFnRghRy4YUVD+8M/5+bJz/Fp0YvVGONaanZshyZ9shZrHUm3gD
-# wFA66Mzw3LyeTP6vBZY1H1dat//O+T23LLb2VN3I5xI6Ta5MirdcmrS3ID3KfyI0
-# rn47aGYBROcBTkZTmzNg95S+UzeQc0PzMsNT79uq/nROacdrjGCT3sTHDN/hMq7M
-# kztReJVni+49Vv4M0GkPGw/zJSZrM233bkf6c0Plfg6lZrEpfDKEY1WJxA3Bk1Qw
-# GROs0303p+tdOmw1XNtB1xLaqUkL39iAigmTYo61Zs8liM2EuLE/pDkP2QKe6xJM
-# lXzzawWpXhaDzLhn4ugTncxbgtNMs+1b/97lc6wjOy0AvzVVdAlJ2ElYGn+SNuZR
-# kg7zJn0cTRe8yexDJtC/QV9AqURE9JnnV4eeUB9XVKg+/XRjL7FQZQnmWEIuQxpM
-# tPAlR1n6BB6T1CZGSlCBst6+eLf8ZxXhyVeEHg9j1uliutZfVS7qXMYoCAQlObgO
-# K6nyTJccBz8NUvXt7y+CDwIDAQABo4H0MIHxMB8GA1UdIwQYMBaAFK29mHo0tCb3
-# +sQmVO8DveAky1QaMB0GA1UdDgQWBBRTeb9aqitKz1SA4dibwJ3ysgNmyzAOBgNV
-# HQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zARBgNVHSAECjAIMAYGBFUdIAAw
-# RAYDVR0fBD0wOzA5oDegNYYzaHR0cDovL2NybC51c2VydHJ1c3QuY29tL0FkZFRy
-# dXN0RXh0ZXJuYWxDQVJvb3QuY3JsMDUGCCsGAQUFBwEBBCkwJzAlBggrBgEFBQcw
-# AYYZaHR0cDovL29jc3AudXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQwFAAOCAQEA
-# k2X2N4OVD17Dghwf1nfnPIrAqgnw6Qsm8eDCanWhx3nJuVJgyCkSDvCtA9YJxHbf
-# 5aaBladG2oJXqZWSxbaPAyJsM3fBezIXbgfOWhRBOgUkG/YUBjuoJSQOu8wqdd25
-# cEE/fNBjNiEHH0b/YKSR4We83h9+GRTJY2eR6mcHa7SPi8BuQ33DoYBssh68U4V9
-# 3JChpLwt70ZyVzUFv7tGu25tN5m2/yOSkcZuQPiPKVbqX9VfFFOs8E9h6vcizKdW
-# C+K4NB8m2XsZBWg/ujzUOAai0+aPDuO0cW1AQsWEtECVK/RloEh59h2BY5adT3Xg
-# +HzkjqnR8q2Ks4zHIc3C7zCCBa4wggSWoAMCAQICEAcDcdEPeVpAcZkrlAdim+Iw
-# DQYJKoZIhvcNAQELBQAwfDELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAk1JMRIwEAYD
-# VQQHEwlBbm4gQXJib3IxEjAQBgNVBAoTCUludGVybmV0MjERMA8GA1UECxMISW5D
-# b21tb24xJTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0EwHhcN
-# MTgwNjIxMDAwMDAwWhcNMjEwNjIwMjM1OTU5WjCBuTELMAkGA1UEBhMCVVMxDjAM
-# BgNVBBEMBTgwMjA0MQswCQYDVQQIDAJDTzEPMA0GA1UEBwwGRGVudmVyMRgwFgYD
-# VQQJDA8xMjAxIDV0aCBTdHJlZXQxMDAuBgNVBAoMJ01ldHJvcG9saXRhbiBTdGF0
-# ZSBVbml2ZXJzaXR5IG9mIERlbnZlcjEwMC4GA1UEAwwnTWV0cm9wb2xpdGFuIFN0
-# YXRlIFVuaXZlcnNpdHkgb2YgRGVudmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-# MIIBCgKCAQEAy1eJKMQONg0Ehhew+cUYfBmq9LmWBE1JpCOzLGAuwYjrIssMKlpj
-# LcIHA3WifhCdjMRCmwdX5Mn/crrVm+oDGFHoCfDxONWNoHeQ920omMRSWCJc0rSc
-# NHIxVqxnJ5cAtHlJNJ/VLGgy3wcgN3QpMHzKEwTp7MV0XPAHkd7b+PI6zB9iw36f
-# iTZD1RxpW1aALNa5rf1qfA29rszga6A87lmQXpeSsbNEeldy1X8WTouao9jqxGbj
-# mdJycLUpDc03+3pkEfOYC2BtlrjWjn4C812S/1NUXpLc4Mal/eopbySMW3zYsth1
-# mLRXTuWf5L8G0CUZQ86+p6bgSRsy1nkzcwIDAQABo4IB7DCCAegwHwYDVR0jBBgw
-# FoAUrjUjF///Bj2cUOCMJGUzHnAQiKIwHQYDVR0OBBYEFKXpiG68+Uil9fM4ir5j
-# +aQMY5sPMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMBAf8EAjAAMBMGA1UdJQQMMAoG
-# CCsGAQUFBwMDMBEGCWCGSAGG+EIBAQQEAwIEEDBmBgNVHSAEXzBdMFsGDCsGAQQB
-# riMBBAMCATBLMEkGCCsGAQUFBwIBFj1odHRwczovL3d3dy5pbmNvbW1vbi5vcmcv
-# Y2VydC9yZXBvc2l0b3J5L2Nwc19jb2RlX3NpZ25pbmcucGRmMEkGA1UdHwRCMEAw
-# PqA8oDqGOGh0dHA6Ly9jcmwuaW5jb21tb24tcnNhLm9yZy9JbkNvbW1vblJTQUNv
-# ZGVTaWduaW5nQ0EuY3JsMH4GCCsGAQUFBwEBBHIwcDBEBggrBgEFBQcwAoY4aHR0
-# cDovL2NydC5pbmNvbW1vbi1yc2Eub3JnL0luQ29tbW9uUlNBQ29kZVNpZ25pbmdD
-# QS5jcnQwKAYIKwYBBQUHMAGGHGh0dHA6Ly9vY3NwLmluY29tbW9uLXJzYS5vcmcw
-# LQYDVR0RBCYwJIEiaXRzc3lzdGVtZW5naW5lZXJpbmdAbXN1ZGVudmVyLmVkdTAN
-# BgkqhkiG9w0BAQsFAAOCAQEAhzY9WrsFqZYC6PIJA8ewYINszeLU5jmeu4D9861s
-# nqYm9P1Qljj7rWCtwcvNXuinXLSdGFXjn1Osp8co7ja5HJml2cdo6gLTzRx+D/QT
-# AUlHLdtgHS+RU/xN5SS9SFu1w9Wh8jU//CH1lPaJhUJ6s44CqK/FaqHwO37yhJuN
-# IaE8VbK7ThvxRzNsr/3u5d2ArTM1xcMlSMwqvoJt698tAt9CIU+LNp6P7Z+9H+Nk
-# cC/E71bauF3o3DqAWzarc/gIUrT7ICQUIuT73Cyn5GxG9GS91Ymn5qc28Ao7JV8K
-# PqzPl1A8AhgjIuHL3N7e1pUqb30NBBlX/A38BM8N+0sabTCCBeswggPToAMCAQIC
-# EGXh4uPV3lBFhfMmJIAF4tQwDQYJKoZIhvcNAQENBQAwgYgxCzAJBgNVBAYTAlVT
-# MRMwEQYDVQQIEwpOZXcgSmVyc2V5MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwG
-# A1UEChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3Qg
-# UlNBIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTE0MDkxOTAwMDAwMFoXDTI0
-# MDkxODIzNTk1OVowfDELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAk1JMRIwEAYDVQQH
-# EwlBbm4gQXJib3IxEjAQBgNVBAoTCUludGVybmV0MjERMA8GA1UECxMISW5Db21t
-# b24xJTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcgQ0EwggEiMA0G
-# CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAoC+LHnq7anWs+D7co7o5Isrzo3bk
-# v30wJ+a605gyViNcBoaXDYDo7aKBNesL9l5+qT5oc/2d1Gd5zqrqaLcZ2xx2OlmH
-# XV6Zx6GyuKmEcwzMq4dGHGrH7zklvqfd2iw1cDYdIi4gO93jHA4/NJ/lff5VgFsG
-# fIJXhFXzOPvyDDapuV6yxYFHI30SgaDAASg+A/k4l6OtAvICaP3VAav11VFNUNMX
-# IkblcxjgOuQ3d1HInn1Sik+A3Ca5wEzK/FH6EAkRelcqc8TgISpswlS9HD6D+Fup
-# LPH623jP2YmabaP/Dac/fkxWI9YJvuGlHYsHxb/j31iq76SvgssF+AoJAgMBAAGj
-# ggFaMIIBVjAfBgNVHSMEGDAWgBRTeb9aqitKz1SA4dibwJ3ysgNmyzAdBgNVHQ4E
-# FgQUrjUjF///Bj2cUOCMJGUzHnAQiKIwDgYDVR0PAQH/BAQDAgGGMBIGA1UdEwEB
-# /wQIMAYBAf8CAQAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwEQYDVR0gBAowCDAGBgRV
-# HSAAMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6Ly9jcmwudXNlcnRydXN0LmNvbS9V
-# U0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDB2BggrBgEFBQcB
-# AQRqMGgwPwYIKwYBBQUHMAKGM2h0dHA6Ly9jcnQudXNlcnRydXN0LmNvbS9VU0VS
-# VHJ1c3RSU0FBZGRUcnVzdENBLmNydDAlBggrBgEFBQcwAYYZaHR0cDovL29jc3Au
-# dXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQ0FAAOCAgEARiy2f2pOJWa9nGqmqtCe
-# vQ+uTjX88DgnwcedBMmCNNuG4RP3wZaNMEQT0jXtefdXXJOmEldtq3mXwSZk38lc
-# y8M2om2TI6HbqjACa+q4wIXWkqJBbK4MOWXFH0wQKnrEXjCcfUxyzhZ4s6tA/L4L
-# mRYTmCD/srpz0bVU3AuSX+mj05E+WPEop4WE+D35OLcnMcjFbst3KWN99xxaK40V
-# HnX8EkcBkipQPDcuyt1hbOCDjHTq2Ay84R/SchN6WkVPGpW8y0mGc59lul1dlDmj
-# VOynF9MRU5ACynTkdQ0JfKHOeVUuvQlo2Qzt52CTn3OZ1NtIZ0yrxm267pXKuK86
-# UxI9aZrLkyO/BPO42itvAG/QMv7tzJkGns1hmi74OgZ3WUVk3SNTkixAqCbf7TSm
-# ecnrtyt0XB/P/xurcyFOIo5YRvTgVPc5lWn6PO9oKEdYtDyBsI5GAKVpmrUfdqoj
-# sl5GRYQQSnpO/hYBWyv+LsuhdTvaA5vwIDM8WrAjgTFx2vGnQjg5dsQIeUOpTixM
-# ierCUzCh+bF47i73jX3qoiolCX7xLKSXTpWS2oy7HzgjDdlAsfTwnwton5YNTJxz
-# g6NjrUjsUbEIORtJB/eeld5EWbQgGfwaJb5NEOTonZckUtYS1VmaFugWUEuhSWod
-# QIq7RA6FT/4AQ6qdj3yPbNExggTpMIIE5QIBATCBkDB8MQswCQYDVQQGEwJVUzEL
-# MAkGA1UECBMCTUkxEjAQBgNVBAcTCUFubiBBcmJvcjESMBAGA1UEChMJSW50ZXJu
-# ZXQyMREwDwYDVQQLEwhJbkNvbW1vbjElMCMGA1UEAxMcSW5Db21tb24gUlNBIENv
-# ZGUgU2lnbmluZyBDQQIQBwNx0Q95WkBxmSuUB2Kb4jANBglghkgBZQMEAgEFAKCB
-# hDAYBgorBgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEE
-# AYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8GCSqGSIb3DQEJ
-# BDEiBCDp2B+3Ag31MciwYrzY6U2jRPWDtDrGlPDnCXRfIQzqRzANBgkqhkiG9w0B
-# AQEFAASCAQB7rGsA92iedy6BD7vYKVI2mXtmMyZ1ZLM2dwnN+aZ0iK4ssM3HJrrJ
-# Ek/qZvp47RTnoB77RbrkkfMCkVkLrn+jksjHcFFH41EhGl7NoodTbcuhYFB7FuAY
-# warXgG4Z/B26a/X2LF3XZIJUphJEQNtchNBWsxlXDARh4gKkgWNoyrqlI8lBvm/F
-# xiZ7rYa1fIIqt5H/4AiJu6XvlSUSryZ9E7l9KfhkfFYMQD8eiaQCCOl5nkf5lq+E
-# uiv/zWYey4+8lMQa7teUuOijHUUUfP29zKACIvsCPPQ4kOCYn0o5wiO9qp4dbZ1d
-# v8gj791FPETSTilRnM/WmRnvOwTqL99zoYICojCCAp4GCSqGSIb3DQEJBjGCAo8w
-# ggKLAgEBMGgwUjELMAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYt
-# c2ExKDAmBgNVBAMTH0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh
-# 1pmnZJc+8fhCfukZzFNBFDAJBgUrDgMCGgUAoIH9MBgGCSqGSIb3DQEJAzELBgkq
-# hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTIwMDIyNTE1MTgwNVowIwYJKoZIhvcN
-# AQkEMRYEFKaKeKhrGPJ4Qg7HkPk5KK9qJ0fcMIGdBgsqhkiG9w0BCRACDDGBjTCB
-# ijCBhzCBhAQUY7gvq2H1g5CWlQULACScUCkz7HkwbDBWpFQwUjELMAkGA1UEBhMC
-# QkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMTH0dsb2JhbFNp
-# Z24gVGltZXN0YW1waW5nIENBIC0gRzICEhEh1pmnZJc+8fhCfukZzFNBFDANBgkq
-# hkiG9w0BAQEFAASCAQAaow9A/jAj75f+QjMqwGJuC7bILZlcFiFVbVL+sh0jXvNX
-# U4edfpsV1oiQ+Ma8lrFsiUE4S0+Cebj+ftasuFBPw3+gup4rZkU47SRBvmUsfkgm
-# Vx65QHCrnXDVzZ7aKUjK6uA1hY2Mv6bZqmMw3ym0+fvLI8qSCojqUF3Y9tshASIb
-# g6sOyyzfeZEp2s01sTOX0Gt+25TMTu4c1D+5X45GbMStpJ6wSUzMfgKATdpWL55y
-# qz0AITwdS7m3EEE9i2K4a2RRNJHoTlo7dibEJunjx6emXVUWi6Kx4HOTeLfClG0Q
-# //utq5Rhv3RKo0BhPw6MBUPcqjr/E+9XHMXavlFO
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDe7VV6+Kb9WZFA
+# DcIv8h3D3FSes+6ss1+k/4LxIFXb5KCCGhUwggSEMIIDbKADAgECAhBCGvKUCYQZ
+# H1IKS8YkJqdLMA0GCSqGSIb3DQEBBQUAMG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQK
+# EwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5l
+# dHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3QwHhcNMDUw
+# NjA3MDgwOTEwWhcNMjAwNTMwMTA0ODM4WjCBlTELMAkGA1UEBhMCVVMxCzAJBgNV
+# BAgTAlVUMRcwFQYDVQQHEw5TYWx0IExha2UgQ2l0eTEeMBwGA1UEChMVVGhlIFVT
+# RVJUUlVTVCBOZXR3b3JrMSEwHwYDVQQLExhodHRwOi8vd3d3LnVzZXJ0cnVzdC5j
+# b20xHTAbBgNVBAMTFFVUTi1VU0VSRmlyc3QtT2JqZWN0MIIBIjANBgkqhkiG9w0B
+# AQEFAAOCAQ8AMIIBCgKCAQEAzqqBP6OjYXiqMQBVlRGeJw8fHN86m4JoMMBKYR3x
+# Lw76vnn3pSPvVVGWhM3b47luPjHYCiBnx/TZv5TrRwQ+As4qol2HBAn2MJ0Yipey
+# qhz8QdKhNsv7PZG659lwNfrk55DDm6Ob0zz1Epl3sbcJ4GjmHLjzlGOIamr+C3bJ
+# vvQi5Ge5qxped8GFB90NbL/uBsd3akGepw/X++6UF7f8hb6kq8QcMd3XttHk8O/f
+# Fo+yUpPXodSJoQcuv+EBEkIeGuHYlTTbZHko/7ouEcLl6FuSSPtHC8Js2q0yg0Hz
+# peVBcP1lkG36+lHE+b2WKxkELNNtp9zwf2+DZeJqq4eGdQIDAQABo4H0MIHxMB8G
+# A1UdIwQYMBaAFK29mHo0tCb3+sQmVO8DveAky1QaMB0GA1UdDgQWBBTa7WR0FJwU
+# PKvdmam9WyhNizzJ2DAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAR
+# BgNVHSAECjAIMAYGBFUdIAAwRAYDVR0fBD0wOzA5oDegNYYzaHR0cDovL2NybC51
+# c2VydHJ1c3QuY29tL0FkZFRydXN0RXh0ZXJuYWxDQVJvb3QuY3JsMDUGCCsGAQUF
+# BwEBBCkwJzAlBggrBgEFBQcwAYYZaHR0cDovL29jc3AudXNlcnRydXN0LmNvbTAN
+# BgkqhkiG9w0BAQUFAAOCAQEATUIvpsGK6weAkFhGjPgZOWYqPFosbc/U2YdVjXkL
+# Eoh7QI/Vx/hLjVUWY623V9w7K73TwU8eA4dLRJvj4kBFJvMmSStqhPFUetRC2vzT
+# artmfsqe6um73AfHw5JOgzyBSZ+S1TIJ6kkuoRFxmjbSxU5otssOGyUWr2zeXXbY
+# H3KxkyaGF9sY3q9F6d/7mK8UGO2kXvaJlEXwVQRK3f8n3QZKQPa0vPHkD5kCu/1d
+# Di4owb47Xxo/lxCEvBY+2KOcYx1my1xf2j7zDwoJNSLb28A/APnmDV1n0f2gHgMr
+# 2UD3vsyHZlSApqO49Rli1dImsZgm7prLRKdFWoGVFRr1UTCCBOYwggPOoAMCAQIC
+# EGJcTZCM1UL7qy6lcz/xVBkwDQYJKoZIhvcNAQEFBQAwgZUxCzAJBgNVBAYTAlVT
+# MQswCQYDVQQIEwJVVDEXMBUGA1UEBxMOU2FsdCBMYWtlIENpdHkxHjAcBgNVBAoT
+# FVRoZSBVU0VSVFJVU1QgTmV0d29yazEhMB8GA1UECxMYaHR0cDovL3d3dy51c2Vy
+# dHJ1c3QuY29tMR0wGwYDVQQDExRVVE4tVVNFUkZpcnN0LU9iamVjdDAeFw0xMTA0
+# MjcwMDAwMDBaFw0yMDA1MzAxMDQ4MzhaMHoxCzAJBgNVBAYTAkdCMRswGQYDVQQI
+# ExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoT
+# EUNPTU9ETyBDQSBMaW1pdGVkMSAwHgYDVQQDExdDT01PRE8gVGltZSBTdGFtcGlu
+# ZyBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKqC8YSpW9hxtdJd
+# K+30EyAM+Zvp0Y90Xm7u6ylI2Mi+LOsKYWDMvZKNfN10uwqeaE6qdSRzJ6438xqC
+# pW24yAlGTH6hg+niA2CkIRAnQJpZ4W2vPoKvIWlZbWPMzrH2Fpp5g5c6HQyvyX3R
+# TtjDRqGlmKpgzlXUEhHzOwtsxoi6lS7voEZFOXys6eOt6FeXX/77wgmN/o6apT9Z
+# RvzHLV2Eh/BvWCbD8EL8Vd5lvmc4Y7MRsaEl7ambvkjfTHfAqhkLtv1Kjyx5VbH+
+# WVpabVWLHEP2sVVyKYlNQD++f0kBXTybXAj7yuJ1FQWTnQhi/7oN26r4tb8QMspy
+# 6ggmzRkCAwEAAaOCAUowggFGMB8GA1UdIwQYMBaAFNrtZHQUnBQ8q92Zqb1bKE2L
+# PMnYMB0GA1UdDgQWBBRkIoa2SonJBA/QBFiSK7NuPR4nbDAOBgNVHQ8BAf8EBAMC
+# AQYwEgYDVR0TAQH/BAgwBgEB/wIBADATBgNVHSUEDDAKBggrBgEFBQcDCDARBgNV
+# HSAECjAIMAYGBFUdIAAwQgYDVR0fBDswOTA3oDWgM4YxaHR0cDovL2NybC51c2Vy
+# dHJ1c3QuY29tL1VUTi1VU0VSRmlyc3QtT2JqZWN0LmNybDB0BggrBgEFBQcBAQRo
+# MGYwPQYIKwYBBQUHMAKGMWh0dHA6Ly9jcnQudXNlcnRydXN0LmNvbS9VVE5BZGRU
+# cnVzdE9iamVjdF9DQS5jcnQwJQYIKwYBBQUHMAGGGWh0dHA6Ly9vY3NwLnVzZXJ0
+# cnVzdC5jb20wDQYJKoZIhvcNAQEFBQADggEBABHJPeEF6DtlrMl0MQO32oM4xpK6
+# /c3422ObfR6QpJjI2VhoNLXwCyFTnllG/WOF3/5HqnDkP14IlShfFPH9Iq5w5Lfx
+# sLZWn7FnuGiDXqhg25g59txJXhOnkGdL427n6/BDx9Avff+WWqcD1ptUoCPTpcKg
+# jvlP0bIGIf4hXSeMoK/ZsFLu/Mjtt5zxySY41qUy7UiXlF494D01tLDJWK/HWP9i
+# dBaSZEHayqjriwO9wU6uH5EyuOEkO3vtFGgJhpYoyTvJbCjCJWn1SmGt4Cf4U6d1
+# FbBRMbDxQf8+WiYeYH7i42o5msTq7j/mshM/VQMETQuQctTr+7yHkFGyOBkwggT+
+# MIID5qADAgECAhArc9t0YxFMWlsySvIwV3JJMA0GCSqGSIb3DQEBBQUAMHoxCzAJ
+# BgNVBAYTAkdCMRswGQYDVQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcT
+# B1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9ETyBDQSBMaW1pdGVkMSAwHgYDVQQDExdD
+# T01PRE8gVGltZSBTdGFtcGluZyBDQTAeFw0xOTA1MDIwMDAwMDBaFw0yMDA1MzAx
+# MDQ4MzhaMIGDMQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVz
+# dGVyMRAwDgYDVQQHDAdTYWxmb3JkMRgwFgYDVQQKDA9TZWN0aWdvIExpbWl0ZWQx
+# KzApBgNVBAMMIlNlY3RpZ28gU0hBLTEgVGltZSBTdGFtcGluZyBTaWduZXIwggEi
+# MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC/UjaCOtx0Nw141X8WUBlm7boa
+# mdFjOJoMZrJA26eAUL9pLjYvCmc/QKFKimM1m9AZzHSqFxmRK7VVIBn7wBo6bco5
+# m4LyupWhGtg0x7iJe3CIcFFmaex3/saUcnrPJYHtNIKa3wgVNzG0ba4cvxjVDc/+
+# teHE+7FHcen67mOR7PHszlkEEXyuC2BT6irzvi8CD9BMXTETLx5pD4WbRZbCjRKL
+# Z64fr2mrBpaBAN+RfJUc5p4ZZN92yGBEL0njj39gakU5E0Qhpbr7kfpBQO1NArRL
+# f9/i4D24qvMa2EGDj38z7UEG4n2eP1OEjSja3XbGvfeOHjjNwMtgJAPeekyrAgMB
+# AAGjggF0MIIBcDAfBgNVHSMEGDAWgBRkIoa2SonJBA/QBFiSK7NuPR4nbDAdBgNV
+# HQ4EFgQUru7ZYLpe9SwBEv2OjbJVcjVGb/EwDgYDVR0PAQH/BAQDAgbAMAwGA1Ud
+# EwEB/wQCMAAwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwQAYDVR0gBDkwNzA1Bgwr
+# BgEEAbIxAQIBAwgwJTAjBggrBgEFBQcCARYXaHR0cHM6Ly9zZWN0aWdvLmNvbS9D
+# UFMwQgYDVR0fBDswOTA3oDWgM4YxaHR0cDovL2NybC5zZWN0aWdvLmNvbS9DT01P
+# RE9UaW1lU3RhbXBpbmdDQV8yLmNybDByBggrBgEFBQcBAQRmMGQwPQYIKwYBBQUH
+# MAKGMWh0dHA6Ly9jcnQuc2VjdGlnby5jb20vQ09NT0RPVGltZVN0YW1waW5nQ0Ff
+# Mi5jcnQwIwYIKwYBBQUHMAGGF2h0dHA6Ly9vY3NwLnNlY3RpZ28uY29tMA0GCSqG
+# SIb3DQEBBQUAA4IBAQB6f6lK0rCkHB0NnS1cxq5a3Y9FHfCeXJD2Xqxw/tPZzeQZ
+# pApDdWBqg6TDmYQgMbrW/kzPE/gQ91QJfurc0i551wdMVLe1yZ2y8PIeJBTQnMfI
+# Z6oLYre08Qbk5+QhSxkymTS5GWF3CjOQZ2zAiEqS9aFDAfOuom/Jlb2WOPeD9618
+# KB/zON+OIchxaFMty66q4jAXgyIpGLXhjInrbvh+OLuQT7lfBzQSa5fV5juRvgAX
+# IW7ibfxSee+BJbrPE9D73SvNgbZXiU7w3fMLSjTKhf8IuZZf6xET4OHFA61XHOFd
+# kga+G8g8P6Ugn2nQacHFwsk+58Vy9+obluKUr4YuMIIFrjCCBJagAwIBAgIQBwNx
+# 0Q95WkBxmSuUB2Kb4jANBgkqhkiG9w0BAQsFADB8MQswCQYDVQQGEwJVUzELMAkG
+# A1UECBMCTUkxEjAQBgNVBAcTCUFubiBBcmJvcjESMBAGA1UEChMJSW50ZXJuZXQy
+# MREwDwYDVQQLEwhJbkNvbW1vbjElMCMGA1UEAxMcSW5Db21tb24gUlNBIENvZGUg
+# U2lnbmluZyBDQTAeFw0xODA2MjEwMDAwMDBaFw0yMTA2MjAyMzU5NTlaMIG5MQsw
+# CQYDVQQGEwJVUzEOMAwGA1UEEQwFODAyMDQxCzAJBgNVBAgMAkNPMQ8wDQYDVQQH
+# DAZEZW52ZXIxGDAWBgNVBAkMDzEyMDEgNXRoIFN0cmVldDEwMC4GA1UECgwnTWV0
+# cm9wb2xpdGFuIFN0YXRlIFVuaXZlcnNpdHkgb2YgRGVudmVyMTAwLgYDVQQDDCdN
+# ZXRyb3BvbGl0YW4gU3RhdGUgVW5pdmVyc2l0eSBvZiBEZW52ZXIwggEiMA0GCSqG
+# SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDLV4koxA42DQSGF7D5xRh8Gar0uZYETUmk
+# I7MsYC7BiOsiywwqWmMtwgcDdaJ+EJ2MxEKbB1fkyf9yutWb6gMYUegJ8PE41Y2g
+# d5D3bSiYxFJYIlzStJw0cjFWrGcnlwC0eUk0n9UsaDLfByA3dCkwfMoTBOnsxXRc
+# 8AeR3tv48jrMH2LDfp+JNkPVHGlbVoAs1rmt/Wp8Db2uzOBroDzuWZBel5Kxs0R6
+# V3LVfxZOi5qj2OrEZuOZ0nJwtSkNzTf7emQR85gLYG2WuNaOfgLzXZL/U1Rektzg
+# xqX96ilvJIxbfNiy2HWYtFdO5Z/kvwbQJRlDzr6npuBJGzLWeTNzAgMBAAGjggHs
+# MIIB6DAfBgNVHSMEGDAWgBSuNSMX//8GPZxQ4IwkZTMecBCIojAdBgNVHQ4EFgQU
+# pemIbrz5SKX18ziKvmP5pAxjmw8wDgYDVR0PAQH/BAQDAgeAMAwGA1UdEwEB/wQC
+# MAAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwEQYJYIZIAYb4QgEBBAQDAgQQMGYGA1Ud
+# IARfMF0wWwYMKwYBBAGuIwEEAwIBMEswSQYIKwYBBQUHAgEWPWh0dHBzOi8vd3d3
+# LmluY29tbW9uLm9yZy9jZXJ0L3JlcG9zaXRvcnkvY3BzX2NvZGVfc2lnbmluZy5w
+# ZGYwSQYDVR0fBEIwQDA+oDygOoY4aHR0cDovL2NybC5pbmNvbW1vbi1yc2Eub3Jn
+# L0luQ29tbW9uUlNBQ29kZVNpZ25pbmdDQS5jcmwwfgYIKwYBBQUHAQEEcjBwMEQG
+# CCsGAQUFBzAChjhodHRwOi8vY3J0LmluY29tbW9uLXJzYS5vcmcvSW5Db21tb25S
+# U0FDb2RlU2lnbmluZ0NBLmNydDAoBggrBgEFBQcwAYYcaHR0cDovL29jc3AuaW5j
+# b21tb24tcnNhLm9yZzAtBgNVHREEJjAkgSJpdHNzeXN0ZW1lbmdpbmVlcmluZ0Bt
+# c3VkZW52ZXIuZWR1MA0GCSqGSIb3DQEBCwUAA4IBAQCHNj1auwWplgLo8gkDx7Bg
+# g2zN4tTmOZ67gP3zrWyepib0/VCWOPutYK3By81e6KdctJ0YVeOfU6ynxyjuNrkc
+# maXZx2jqAtPNHH4P9BMBSUct22AdL5FT/E3lJL1IW7XD1aHyNT/8IfWU9omFQnqz
+# jgKor8VqofA7fvKEm40hoTxVsrtOG/FHM2yv/e7l3YCtMzXFwyVIzCq+gm3r3y0C
+# 30IhT4s2no/tn70f42RwL8TvVtq4XejcOoBbNqtz+AhStPsgJBQi5PvcLKfkbEb0
+# ZL3ViafmpzbwCjslXwo+rM+XUDwCGCMi4cvc3t7WlSpvfQ0EGVf8DfwEzw37Sxpt
+# MIIF6zCCA9OgAwIBAgIQZeHi49XeUEWF8yYkgAXi1DANBgkqhkiG9w0BAQ0FADCB
+# iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
+# cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV
+# BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTQw
+# OTE5MDAwMDAwWhcNMjQwOTE4MjM1OTU5WjB8MQswCQYDVQQGEwJVUzELMAkGA1UE
+# CBMCTUkxEjAQBgNVBAcTCUFubiBBcmJvcjESMBAGA1UEChMJSW50ZXJuZXQyMREw
+# DwYDVQQLEwhJbkNvbW1vbjElMCMGA1UEAxMcSW5Db21tb24gUlNBIENvZGUgU2ln
+# bmluZyBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMCgL4seertq
+# daz4PtyjujkiyvOjduS/fTAn5rrTmDJWI1wGhpcNgOjtooE16wv2Xn6pPmhz/Z3U
+# Z3nOqupotxnbHHY6WYddXpnHobK4qYRzDMyrh0YcasfvOSW+p93aLDVwNh0iLiA7
+# 3eMcDj80n+V9/lWAWwZ8gleEVfM4+/IMNqm5XrLFgUcjfRKBoMABKD4D+TiXo60C
+# 8gJo/dUBq/XVUU1Q0xciRuVzGOA65Dd3UciefVKKT4DcJrnATMr8UfoQCRF6Vypz
+# xOAhKmzCVL0cPoP4W6ks8frbeM/ZiZpto/8Npz9+TFYj1gm+4aUdiwfFv+PfWKrv
+# pK+CywX4CgkCAwEAAaOCAVowggFWMB8GA1UdIwQYMBaAFFN5v1qqK0rPVIDh2JvA
+# nfKyA2bLMB0GA1UdDgQWBBSuNSMX//8GPZxQ4IwkZTMecBCIojAOBgNVHQ8BAf8E
+# BAMCAYYwEgYDVR0TAQH/BAgwBgEB/wIBADATBgNVHSUEDDAKBggrBgEFBQcDAzAR
+# BgNVHSAECjAIMAYGBFUdIAAwUAYDVR0fBEkwRzBFoEOgQYY/aHR0cDovL2NybC51
+# c2VydHJ1c3QuY29tL1VTRVJUcnVzdFJTQUNlcnRpZmljYXRpb25BdXRob3JpdHku
+# Y3JsMHYGCCsGAQUFBwEBBGowaDA/BggrBgEFBQcwAoYzaHR0cDovL2NydC51c2Vy
+# dHJ1c3QuY29tL1VTRVJUcnVzdFJTQUFkZFRydXN0Q0EuY3J0MCUGCCsGAQUFBzAB
+# hhlodHRwOi8vb2NzcC51c2VydHJ1c3QuY29tMA0GCSqGSIb3DQEBDQUAA4ICAQBG
+# LLZ/ak4lZr2caqaq0J69D65ONfzwOCfBx50EyYI024bhE/fBlo0wRBPSNe1591dc
+# k6YSV22reZfBJmTfyVzLwzaibZMjoduqMAJr6rjAhdaSokFsrgw5ZcUfTBAqesRe
+# MJx9THLOFnizq0D8vguZFhOYIP+yunPRtVTcC5Jf6aPTkT5Y8SinhYT4Pfk4tycx
+# yMVuy3cpY333HForjRUedfwSRwGSKlA8Ny7K3WFs4IOMdOrYDLzhH9JyE3paRU8a
+# lbzLSYZzn2W6XV2UOaNU7KcX0xFTkALKdOR1DQl8oc55VS69CWjZDO3nYJOfc5nU
+# 20hnTKvGbbrulcq4rzpTEj1pmsuTI78E87jaK28Ab9Ay/u3MmQaezWGaLvg6BndZ
+# RWTdI1OSLECoJt/tNKZ5yeu3K3RcH8//G6tzIU4ijlhG9OBU9zmVafo872goR1i0
+# PIGwjkYApWmatR92qiOyXkZFhBBKek7+FgFbK/4uy6F1O9oDm/AgMzxasCOBMXHa
+# 8adCODl2xAh5Q6lOLEyJ6sJTMKH5sXjuLveNfeqiKiUJfvEspJdOlZLajLsfOCMN
+# 2UCx9PCfC2iflg1MnHODo2OtSOxRsQg5G0kH956V3kRZtCAZ/Bolvk0Q5OidlyRS
+# 1hLVWZoW6BZQS6FJah1AirtEDoVP/gBDqp2PfI9s0TGCBG8wggRrAgEBMIGQMHwx
+# CzAJBgNVBAYTAlVTMQswCQYDVQQIEwJNSTESMBAGA1UEBxMJQW5uIEFyYm9yMRIw
+# EAYDVQQKEwlJbnRlcm5ldDIxETAPBgNVBAsTCEluQ29tbW9uMSUwIwYDVQQDExxJ
+# bkNvbW1vbiBSU0EgQ29kZSBTaWduaW5nIENBAhAHA3HRD3laQHGZK5QHYpviMA0G
+# CWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAIoAKAAKECgAAwGQYJKoZI
+# hvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcC
+# ARUwLwYJKoZIhvcNAQkEMSIEINgd1cy5QzzZSdiZG3OL+3YwDcgDqLaLOXRcxVEL
+# YVZ3MA0GCSqGSIb3DQEBAQUABIIBAGIRfgLjT1bF04JGl06Q0Yzt/uriB5S3lc64
+# ZLNym90cB4o4hQqO43C2Z+eZQk2wU8v1690qFeeIalb7Bf5j7TqD3yqOVPw6rRJL
+# rT5jBErw0BhhoPH1sSIBPWzIAJAcvgw2kAS8B0/G6RpOahmFICcyuEvSqTlXl4Fk
+# 1JKVUUSGSsEDBXaoTkuOZ3r289lN44Gp++QZIJUboDNowuRid0IHSEtjV+jYGFRR
+# Q4srkd/qFbtfkkiCdUMQTIww5UfiDHL4POXVYwj3G3puDCYLbIMp/fuA/06CobOu
+# lEfDtO1CAOAs/McIjy5DWphWJcs7AIXnOWG0/R6tonFvcoFYO8ChggIoMIICJAYJ
+# KoZIhvcNAQkGMYICFTCCAhECAQEwgY4wejELMAkGA1UEBhMCR0IxGzAZBgNVBAgT
+# EkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMR
+# Q09NT0RPIENBIExpbWl0ZWQxIDAeBgNVBAMTF0NPTU9ETyBUaW1lIFN0YW1waW5n
+# IENBAhArc9t0YxFMWlsySvIwV3JJMAkGBSsOAwIaBQCgXTAYBgkqhkiG9w0BCQMx
+# CwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMDA0MjIxNTI1MDVaMCMGCSqG
+# SIb3DQEJBDEWBBTrP96ThUtt7v1shOjAw14gkAI58TANBgkqhkiG9w0BAQEFAASC
+# AQC0bo2QWb5o7mBzCKEGagpVyCLAoQvOU5/y5ozwjmNeHroKpaLlD8UBzANzLcEr
+# VGm583IfIY8H6b3cnqztLLbaZcfeIP+9MZeWcRvnBFQ4Gr10AqVnBR3YjOCVad5C
+# hChlL8Pw8xklThjldZ3/oPH/sD47WiRHrrzWspd+glj01b9zSkxe0MMQMaUJpcF7
+# C+nVEbkRzeY/mgxBkX6DQ51kgMup6K/sBCI7YPWsq5PnlwF57dmBhDA6BwV4qbUD
+# HIBlM7mYbq9I/tNvgYnDN3XrDC+DvmPYJFTfynQlM5QX6ILDWbPWStgfny2/dmlk
+# Jf4emZdf5fQ88Gr6ycWo+XPc
 # SIG # End signature block
