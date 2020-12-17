@@ -3,7 +3,6 @@ $fileShare = New-PSSession -ComputerName $Env:serverName
 
 $stagingDir = $Env:stagingDirectory
 $cert = (Get-ChildItem Cert:\LocalMachine\My -CodeSigningCert)
-$timestampServer =  "http://timestamp.comodoca.com"
 
 $initParams = @{}
 ## Uncomment the next line for debugging
@@ -22,6 +21,7 @@ switch ($Env:APPVEYOR_REPO_COMMIT_AUTHOR) {
   $Env:steveGitHub { $author = $Env:steve }
   $Env:truongGitHub { $author = $Env:truong }
   $Env:jamesGitHub { $author = $Env:james }
+  $Env:davidGitHub { $author = $Env:david }
 }
 
 ## Remove unneeded files from the repository before uploading to the file share
@@ -41,7 +41,7 @@ Get-ChildItem  "$Env:APPLICATION_PATH\AppDeployToolkit" `
     | ForEach-Object `
       { Set-AuthenticodeSignature $_.FullName $cert `
         -HashAlgorithm SHA256 `
-        -TimestampServer "$timestampServer" `
+        -TimestampServer "$Env:timestampServer" `
       }
 
 Get-ChildItem  "$Env:APPLICATION_PATH" `
@@ -49,7 +49,7 @@ Get-ChildItem  "$Env:APPLICATION_PATH" `
     | ForEach-Object `
       { Set-AuthenticodeSignature $_.FullName $cert `
         -HashAlgorithm SHA256 `
-        -TimestampServer "$timestampServer" `
+        -TimestampServer "$Env:timestampServer" `
       }
 
 $contentLocation = "$Env:stagingContentLocation\$appName"
