@@ -66,14 +66,14 @@ Try {
 	##*===============================================
 	## Variables: Application
 	[string]$appVendor = ''
-	[string]$appName = ''
-	[string]$appVersion = ''
+	[string]$appName = 'LabStats'
+	[string]$appVersion = '8.20.930.1'
 	[string]$appArch = ''
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = 'XX/XX/20XX'
-	[string]$appScriptAuthor = '<author name>'
+	[string]$appScriptDate = '12/21/2020'
+	[string]$appScriptAuthor = '<David Torres>'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
@@ -121,7 +121,7 @@ Try {
 		[string]$installPhase = 'Pre-Installation'
 
 		## Show Welcome Message, close Internet Explorer if required, verify there is enough disk space to complete the install, and persist the prompt
-		Show-InstallationWelcome -CloseApps 'iexplore' -CheckDiskSpace -PersistPrompt
+		Show-InstallationWelcome -CloseApps 'labstatsclient,labstatsuserspace' -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -141,6 +141,9 @@ Try {
 		}
 
 		## <Perform Installation tasks here>
+		$exitCode = Execute-Process -Path "LabStatsGO-${appVersion}.exe" -Parameters "--mode unattended" -PassThru -WindowStyle "Hidden" -WaitForMsiExec
+		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+
 
 
 		##*===============================================
@@ -161,7 +164,7 @@ Try {
 		[string]$installPhase = 'Pre-Uninstallation'
 
 		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-		Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+		Show-InstallationWelcome -CloseApps 'labstatsclient,labstatsuserspace' -CloseAppsCountdown 60
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -181,6 +184,9 @@ Try {
 		}
 
 		# <Perform Uninstallation tasks here>
+		$exitCode = Execute-Process -Path "$dirSupportFiles\LabStatsCleaner.exe" -PassThru -WindowStyle "Hidden" -WaitForMsiExec
+		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+
 
 
 		##*===============================================
