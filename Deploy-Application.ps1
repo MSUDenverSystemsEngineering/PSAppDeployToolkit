@@ -65,15 +65,15 @@ Try {
 	##* VARIABLE DECLARATION
 	##*===============================================
 	## Variables: Application
-	[string]$appVendor = ''
-	[string]$appName = ''
-	[string]$appVersion = ''
-	[string]$appArch = ''
+	[string]$appVendor = 'LabStats'
+	[string]$appName = 'LabStats'
+	[string]$appVersion = '8.10.1209.1'
+	[string]$appArch = 'x64,x86'
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = 'XX/XX/202X'
-	[string]$appScriptAuthor = '<author name>'
+	[string]$appScriptDate = '12/21/2020'
+	[string]$appScriptAuthor = '<David Torres>'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
@@ -121,7 +121,7 @@ Try {
 		[string]$installPhase = 'Pre-Installation'
 
 		## Show Welcome Message, close Internet Explorer if required, verify there is enough disk space to complete the install, and persist the prompt
-		Show-InstallationWelcome -CloseApps 'iexplore' -CheckDiskSpace -PersistPrompt
+		Show-InstallationWelcome -CloseApps 'labstatsclient,labstatsuserspace' -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -141,7 +141,10 @@ Try {
 		}
 
 		## <Perform Installation tasks here>
-
+		##$exitCode = Execute-Process -Path "LabStatsGO-${appVersion}.exe" -Parameters "--mode unattended" -PassThru -WindowStyle "Hidden" -WaitForMsiExec
+		##If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		##==================================================================================================================================================
+		Execute-MSI -Action 'Install' -Path "$dirFiles\LabStats.msi" -AddParameters '/QN LABSTATSCLIENTID=84addce7-ce7f-4c0f-9286-dfd4dc30b7b8 CLIENTSERVERADDRESS=https://wus-07.labstats.com'
 
 		##*===============================================
 		##* POST-INSTALLATION
@@ -181,6 +184,7 @@ Try {
 		}
 
 		# <Perform Uninstallation tasks here>
+		Execute-MSI -Action Uninstall -Path '{14F7E335-2D184F72-BCA7-FE6419DD847F}'
 
 
 		##*===============================================
@@ -243,8 +247,8 @@ Catch {
 # SIG # Begin signature block
 # MIIf2QYJKoZIhvcNAQcCoIIfyjCCH8YCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCA/P/NZ9GeNCY9e
-# PlzhHmSS5i+Lp5binIkAsOU5kbdm6qCCGZwwggWuMIIElqADAgECAhAHA3HRD3la
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAivwYIxuhof0VT
+# nbXRf3MCY0WODqFmzSQQn97pQpOim6CCGZwwggWuMIIElqADAgECAhAHA3HRD3la
 # QHGZK5QHYpviMA0GCSqGSIb3DQEBCwUAMHwxCzAJBgNVBAYTAlVTMQswCQYDVQQI
 # EwJNSTESMBAGA1UEBxMJQW5uIEFyYm9yMRIwEAYDVQQKEwlJbnRlcm5ldDIxETAP
 # BgNVBAsTCEluQ29tbW9uMSUwIwYDVQQDExxJbkNvbW1vbiBSU0EgQ29kZSBTaWdu
@@ -386,29 +390,29 @@ Catch {
 # CxMISW5Db21tb24xJTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcg
 # Q0ECEAcDcdEPeVpAcZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGC
 # NwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgor
-# BgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgkFvzbdCY
-# WQTKUocjbCvmtD1gJFmLoSDIqGl+d0DeBx0wDQYJKoZIhvcNAQEBBQAEggEAB/9I
-# in3M0nfsEWmcJzhg/BihdHB87Stuwi+GgTCDgUSguXEbD+MmPjugoZawHOtX0T/D
-# d6yc3z5cR2w/U60/qVOryAzUjPoGOTzHF7v0j1wApNIJXNEGuer9DdIM7/wlnRBV
-# raZet3AOSFWmQg33QFhHwno6Lrhc3FfXBxgyGkuLa+GPcHyrRky/LrqbiJB9HUSl
-# 0wD0jNai1vN6Wo5HprHCCA6KYGlFVliROquV7FUiksWHG3SBlSZixh5GhlsbLRGy
-# +YHFlj9/Ads9dgk1h2mvaTHnoV3omxkOf3ZKfhjxIBeVyk+r5l3r6+HjpptM+yzu
-# jUMh+ImNaS8hD/q4zaGCA0wwggNIBgkqhkiG9w0BCQYxggM5MIIDNQIBATCBkjB9
+# BgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgsMwBlkTW
+# SsN5D8FvfFW21eonLqsJiZEekhKuAPIEv50wDQYJKoZIhvcNAQEBBQAEggEADUQg
+# PfN3ovr4iFTfnQE5vHY7l6mMdvRqYO2xM8qQlDKrSnBfhC355ZTULAs1eE+k3UAB
+# JQ8NO6xVjZQkf34EoTSlQ+dToxbMhtOtJ2Afa/akDh79mvfLsCK4bkGlNQ9j7+CM
+# cjzhUCqDkAGnHxNPC0kTuBYDZuznKLa//UHdVDLfwPx5YyiiVDTpPLAvGTjWGwGS
+# kRvhzdMtrhvhGAtqFI1cdJV+48uedebhpMzKFuCbgCAb7sWKjxKw7rYc70bcSQdD
+# lw7yNTuxQdjYRGb8Qn4ry3JoQ9LriD4JraZkx7j8+JJudCpX0wSAb4saBP/2lCoL
+# oVaUH4Y2AJD6ZnaQMqGCA0wwggNIBgkqhkiG9w0BCQYxggM5MIIDNQIBATCBkjB9
 # MQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
 # VQQHEwdTYWxmb3JkMRgwFgYDVQQKEw9TZWN0aWdvIExpbWl0ZWQxJTAjBgNVBAMT
 # HFNlY3RpZ28gUlNBIFRpbWUgU3RhbXBpbmcgQ0ECEQCMd6AAj/TRsMY9nzpIg41r
 # MA0GCWCGSAFlAwQCAgUAoHkwGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkq
-# hkiG9w0BCQUxDxcNMjAxMjE3MjE0MjMxWjA/BgkqhkiG9w0BCQQxMgQw3a7SA0cy
-# g59A9vsk/JFE94BbpxyK3SoDJlGzUv8JkchICk0JpWOBBVa9U2gOtN9eMA0GCSqG
-# SIb3DQEBAQUABIICAAa+mcvb2qj+E2xajVgHIbhryw8oBkEDwm9Sv5pLRR36auvk
-# 27rVfKi7sjZDxKquGpPNzfzmtAbGMJlurpCV81Y5M0zTEc7npVNB3zgWARsYDs8W
-# 1MduH+YY/5ch7BH/7JuSLJl/Ae2qOL7q11DWkl06H+LAtBlU37CgWFYUiJZhbW9n
-# fadIzU3a3ojeek0sX65MfSALtTZu+wrLA3FAqdQUhAXvscAf88VtAF5ieNOx+TKu
-# bMuXSVGuqxbVj4lJoHDtxgZ+f9yNp2VYXOTrt7vL+cJVMXckl/OUfvf5/m+sO1p2
-# yzU+2/QLSBnvX/I07mvMoyU3vzFRrLcIHI0fc/JSx1ZPewa40FHEcskA0hwbJIHU
-# sLqYOZt1wAo3y5dM/4hqxRsj/tu5lVxQHsK7+nbwDi+C+5b7rb+GQ9AvchrN3H62
-# o/uwDN1QaswqY7V1mMo7HB7GtgehHtVM/zv56lBXRLJvpemblpb5mLmHmbywe8uL
-# Vq+2ItVALcVzMfcEiJSqT5AY21/R76WXp8X/eGbtDWVVdWyMpt7aEYK0SVEfGlBk
-# 0xYggbFQtTI9yRDe51/HFCGyrscWi0vw+rPn0R76BjVnq/fz55cx5E1a/21qCHa4
-# ehZw1F75xo4LzezPCmdbNShXccjNnFUCq19N/c02Tz/UeJ1EZ/FH64my6Amt
+# hkiG9w0BCQUxDxcNMjEwMTA3MTcwODM2WjA/BgkqhkiG9w0BCQQxMgQw6XMTFcYp
+# HqdQdPpM3NIIVHydKHG1TvlSK05/3iJ+lXpcVZQkQy55TMaae+UPoiCAMA0GCSqG
+# SIb3DQEBAQUABIICAGqTxxHPHgHVFNvLPPYEoq23kNWr9gLNZY/yqufBG8aJ4I8y
+# eiwcncK0IKkgru1NJJ3v4r7wcUacGaUdabqxw1W9FHJ5Yr9V94++BEpX11zf586E
+# 8s4doT4V1actsS8+qhf7aslFp42+WsENtavY6E/4hFB9HehrfJAiTZnIGxe+gCBi
+# vs7Bndq3yrlKUqLGkAwBSD81h1RTcxO7AQKnKTYlPQUtzwv9kVup7lPIjx1T2Gby
+# o3Trvw+xOy2beiviaB+VpVDLrQn0AOqqPm4MhMro+vaZ5eOfx0a74/UM+EYanVCZ
+# wqVdIvaUaS5ODoH2eeJ0z61ni+NWCsCW9KJzNXeU15nJDPBNEESj0UTfGEIVEpPl
+# cFBYikU4wETntFh8v5AmZ99hFP+d0/lBHn80kph1AEYRwHoM+HIK29jl93vIbcRR
+# da62jS28ACoH12yP5WuBRjRjke1fHRSwXsCsG5Rm/pS9Dlx55qX9rIeayoMZKavr
+# khpbttvImTvP8RogUEq706YvVuuOYuOktxJ0RbJ9WtN+gcTSaIDe37xFL+IQyKGe
+# XRhfLJLEw5rEGSM1DEk7EYpJ+T54zf3IA4k0X2hLA3vATm80xmfmI6JW+nWIh83w
+# FMbwMaXo9VFpMI5sHDcH0H11W/VbTfeIdblJdBBn106NerAr9sfGE9lqbfdK
 # SIG # End signature block
