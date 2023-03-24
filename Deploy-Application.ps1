@@ -1,260 +1,282 @@
 ﻿<#
 .SYNOPSIS
-	This script performs the installation or uninstallation of an application(s).
-	# LICENSE #
-	PowerShell App Deployment Toolkit - Provides a set of functions to perform common application deployment tasks on Windows.
-	Copyright (C) 2017 - Sean Lillis, Dan Cunningham, Muhammad Mashwani, Aman Motazedian.
-	This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-	You should have received a copy of the GNU Lesser General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+PSApppDeployToolkit - This script performs the installation or uninstallation of an application(s).
 .DESCRIPTION
-	The script is provided as a template to perform an install or uninstall of an application(s).
-	The script either performs an "Install" deployment type or an "Uninstall" deployment type.
-	The install deployment type is broken down into 3 main sections/phases: Pre-Install, Install, and Post-Install.
-	The script dot-sources the AppDeployToolkitMain.ps1 script which contains the logic and functions required to install or uninstall an application.
+- The script is provided as a template to perform an install or uninstall of an application(s).
+- The script either performs an "Install" deployment type or an "Uninstall" deployment type.
+- The install deployment type is broken down into 3 main sections/phases: Pre-Install, Install, and Post-Install.
+The script dot-sources the AppDeployToolkitMain.ps1 script which contains the logic and functions required to install or uninstall an application.
+PSApppDeployToolkit is licensed under the GNU LGPLv3 License - (C) 2023 PSAppDeployToolkit Team (Sean Lillis, Dan Cunningham and Muhammad Mashwani).
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation, either version 3 of the License, or any later version. This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details. You should have received a copy of the GNU Lesser General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
 .PARAMETER DeploymentType
-	The type of deployment to perform. Default is: Install.
+The type of deployment to perform. Default is: Install.
 .PARAMETER DeployMode
-	Specifies whether the installation should be run in Interactive, Silent, or NonInteractive mode. Default is: Interactive. Options: Interactive = Shows dialogs, Silent = No dialogs, NonInteractive = Very silent, i.e. no blocking apps. NonInteractive mode is automatically set if it is detected that the process is not user interactive.
+Specifies whether the installation should be run in Interactive, Silent, or NonInteractive mode. Default is: Interactive. Options: Interactive = Shows dialogs, Silent = No dialogs, NonInteractive = Very silent, i.e. no blocking apps. NonInteractive mode is automatically set if it is detected that the process is not user interactive.
 .PARAMETER AllowRebootPassThru
-	Allows the 3010 return code (requires restart) to be passed back to the parent process (e.g. SCCM) if detected from an installation. If 3010 is passed back to SCCM, a reboot prompt will be triggered.
+Allows the 3010 return code (requires restart) to be passed back to the parent process (e.g. SCCM) if detected from an installation. If 3010 is passed back to SCCM, a reboot prompt will be triggered.
 .PARAMETER TerminalServerMode
-	Changes to "user install mode" and back to "user execute mode" for installing/uninstalling applications for Remote Desktop Session Hosts/Citrix servers.
+Changes to "user install mode" and back to "user execute mode" for installing/uninstalling applications for Remote Desktop Session Hosts/Citrix servers.
 .PARAMETER DisableLogging
-	Disables logging to file for the script. Default is: $false.
+Disables logging to file for the script. Default is: $false.
 .EXAMPLE
-    powershell.exe -Command "& { & '.\Deploy-Application.ps1' -DeployMode 'Silent'; Exit $LastExitCode }"
+powershell.exe -Command "& { & '.\Deploy-Application.ps1' -DeployMode 'Silent'; Exit $LastExitCode }"
 .EXAMPLE
-    powershell.exe -Command "& { & '.\Deploy-Application.ps1' -AllowRebootPassThru; Exit $LastExitCode }"
+powershell.exe -Command "& { & '.\Deploy-Application.ps1' -AllowRebootPassThru; Exit $LastExitCode }"
 .EXAMPLE
-    powershell.exe -Command "& { & '.\Deploy-Application.ps1' -DeploymentType 'Uninstall'; Exit $LastExitCode }"
+powershell.exe -Command "& { & '.\Deploy-Application.ps1' -DeploymentType 'Uninstall'; Exit $LastExitCode }"
 .EXAMPLE
-    Deploy-Application.exe -DeploymentType "Install" -DeployMode "Silent"
+Deploy-Application.exe -DeploymentType "Install" -DeployMode "Silent"
+.INPUTS
+None
+You cannot pipe objects to this script.
+.OUTPUTS
+None
+This script does not generate any output.
 .NOTES
-	Toolkit Exit Code Ranges:
-	60000 - 68999: Reserved for built-in exit codes in Deploy-Application.ps1, Deploy-Application.exe, and AppDeployToolkitMain.ps1
-	69000 - 69999: Recommended for user customized exit codes in Deploy-Application.ps1
-	70000 - 79999: Recommended for user customized exit codes in AppDeployToolkitExtensions.ps1
+Toolkit Exit Code Ranges:
+- 60000 - 68999: Reserved for built-in exit codes in Deploy-Application.ps1, Deploy-Application.exe, and AppDeployToolkitMain.ps1
+- 69000 - 69999: Recommended for user customized exit codes in Deploy-Application.ps1
+- 70000 - 79999: Recommended for user customized exit codes in AppDeployToolkitExtensions.ps1
+ZERO-TOUCH MSI: To perform Zero-Touch MSI install, leave $appName blank
 .LINK
-	http://psappdeploytoolkit.com
+https://psappdeploytoolkit.com
 #>
+
+
 [CmdletBinding()]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "", Justification="Suppress AppVeyor errors on unused variables below")]
 Param (
-	[Parameter(Mandatory=$false)]
-	[ValidateSet('Install','Uninstall','Repair')]
-	[string]$DeploymentType = 'Install',
-	[Parameter(Mandatory=$false)]
-	[ValidateSet('Interactive','Silent','NonInteractive')]
-	[string]$DeployMode = 'Interactive',
-	[Parameter(Mandatory=$false)]
-	[switch]$AllowRebootPassThru = $false,
-	[Parameter(Mandatory=$false)]
-	[switch]$TerminalServerMode = $false,
-	[Parameter(Mandatory=$false)]
-	[switch]$DisableLogging = $false
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Install', 'Uninstall', 'Repair')]
+    [String]$DeploymentType = 'Install',
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Interactive', 'Silent', 'NonInteractive')]
+    [String]$DeployMode = 'Interactive',
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowRebootPassThru = $false,
+    [Parameter(Mandatory = $false)]
+    [switch]$TerminalServerMode = $false,
+    [Parameter(Mandatory = $false)]
+    [switch]$DisableLogging = $false
 )
 
 Try {
-	## Set the script execution policy for this process
-	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch { Write-Error "Failed to set the execution policy to Bypass for this process. This is normal." }
 
-	##*===============================================
-	##* VARIABLE DECLARATION
-	##*===============================================
-	## Variables: Application
-	[string]$appVendor = ''
-	[string]$appName = 'PuTTY'
-	[string]$appVersion = '0.78'
-	[string]$appArch = 'x64'
-	[string]$appLang = 'EN'
-	[string]$appRevision = '01'
-	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = '03/23/2023'
-	[string]$appScriptAuthor = 'Will Jarvill'
-	##*===============================================
-	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
-	[string]$installName = ''
-	[string]$installTitle = ''
+    ##*===============================================
+    ##* VARIABLE DECLARATION
+    ##*===============================================
+    ## Variables: Application
+    [String]$appVendor = ''
+    [String]$appName = ''
+    [String]$appVersion = ''
+    [String]$appArch = ''
+    [String]$appLang = 'EN'
+    [String]$appRevision = '01'
+    [String]$appScriptVersion = '1.0.0'
+    [String]$appScriptDate = 'XX/XX/20XX'
+    [String]$appScriptAuthor = '<author name>'
+    ##*===============================================
+    ## Variables: Install Titles (Only set here to override defaults set by the toolkit)
+    [String]$installName = ''
+    [String]$installTitle = ''
 
-	##* Do not modify section below
-	#region DoNotModify
+    ##* Do not modify section below
+    #region DoNotModify
 
-	## Variables: Exit Code
-	[int32]$mainExitCode = 0
+    ## Variables: Exit Code
+    [Int32]$mainExitCode = 0
 
-	## Variables: Script
-	[string]$deployAppScriptFriendlyName = 'Deploy Application'
-	[version]$deployAppScriptVersion = [version]'3.8.4'
-	[string]$deployAppScriptDate = '26/01/2021'
-	[hashtable]$deployAppScriptParameters = $psBoundParameters
+    ## Variables: Script
+    [String]$deployAppScriptFriendlyName = 'Deploy Application'
+    [Version]$deployAppScriptVersion = [Version]'3.9.2'
+    [String]$deployAppScriptDate = '02/02/2023'
+    [Hashtable]$deployAppScriptParameters = $PsBoundParameters
 
-	## Variables: Environment
-	If (Test-Path -LiteralPath 'variable:HostInvocation') { $InvocationInfo = $HostInvocation } Else { $InvocationInfo = $MyInvocation }
-	[string]$scriptDirectory = Split-Path -Path $InvocationInfo.MyCommand.Definition -Parent
+    ## Variables: Environment
+    If (Test-Path -LiteralPath 'variable:HostInvocation') {
+        $InvocationInfo = $HostInvocation
+    }
+    Else {
+        $InvocationInfo = $MyInvocation
+    }
+    [String]$scriptDirectory = Split-Path -Path $InvocationInfo.MyCommand.Definition -Parent
 
-	## Dot source the required App Deploy Toolkit Functions
-	Try {
-		[string]$moduleAppDeployToolkitMain = "$scriptDirectory\AppDeployToolkit\AppDeployToolkitMain.ps1"
-		If (-not (Test-Path -LiteralPath $moduleAppDeployToolkitMain -PathType 'Leaf')) { Throw "Module does not exist at the specified location [$moduleAppDeployToolkitMain]." }
-		If ($DisableLogging) { . $moduleAppDeployToolkitMain -DisableLogging } Else { . $moduleAppDeployToolkitMain }
-	}
-	Catch {
-		If ($mainExitCode -eq 0){ [int32]$mainExitCode = 60008 }
-		Write-Error -Message "Module [$moduleAppDeployToolkitMain] failed to load: `n$($_.Exception.Message)`n `n$($_.InvocationInfo.PositionMessage)" -ErrorAction 'Continue'
-		## Exit the script, returning the exit code to SCCM
-		If (Test-Path -LiteralPath 'variable:HostInvocation') { $script:ExitCode = $mainExitCode; Exit } Else { Exit $mainExitCode }
-	}
+    ## Dot source the required App Deploy Toolkit Functions
+    Try {
+        [String]$moduleAppDeployToolkitMain = "$scriptDirectory\AppDeployToolkit\AppDeployToolkitMain.ps1"
+        If (-not (Test-Path -LiteralPath $moduleAppDeployToolkitMain -PathType 'Leaf')) {
+            Throw "Module does not exist at the specified location [$moduleAppDeployToolkitMain]."
+        }
+        If ($DisableLogging) {
+            . $moduleAppDeployToolkitMain -DisableLogging
+        }
+        Else {
+            . $moduleAppDeployToolkitMain
+        }
+    }
+    Catch {
+        If ($mainExitCode -eq 0) {
+            [Int32]$mainExitCode = 60008
+        }
+        Write-Error -Message "Module [$moduleAppDeployToolkitMain] failed to load: `n$($_.Exception.Message)`n `n$($_.InvocationInfo.PositionMessage)" -ErrorAction 'Continue'
+        ## Exit the script, returning the exit code to SCCM
+        If (Test-Path -LiteralPath 'variable:HostInvocation') {
+            $script:ExitCode = $mainExitCode; Exit
+        }
+        Else {
+            Exit $mainExitCode
+        }
+    }
 
-	#endregion
-	##* Do not modify section above
-	##*===============================================
-	##* END VARIABLE DECLARATION
-	##*===============================================
+    #endregion
+    ##* Do not modify section above
+    ##*===============================================
+    ##* END VARIABLE DECLARATION
+    ##*===============================================
 
-	If ($deploymentType -ine 'Uninstall' -and $deploymentType -ine 'Repair') {
-		##*===============================================
-		##* PRE-INSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Pre-Installation'
+    If ($deploymentType -ine 'Uninstall' -and $deploymentType -ine 'Repair') {
+        ##*===============================================
+        ##* PRE-INSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Pre-Installation'
 
-		## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-		Show-InstallationWelcome -CloseApps 'processName' -CheckDiskSpace -PersistPrompt
+        ## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
+        Show-InstallationWelcome -CloseApps 'processName' -CheckDiskSpace -PersistPrompt
 
-		## Show Progress Message (with the default message)
-		Show-InstallationProgress
+        ## Show Progress Message (with the default message)
+        Show-InstallationProgress
 
-		## <Perform Pre-Installation tasks here>
-		If (Test-Path -LiteralPath (Join-Path -Path $envProgramFilesX86 -ChildPath "PuTTY\unins000.exe") -PathType 'Leaf') {
-			Write-Log -Message 'PuTTY was previously installed with an executable. Will be uninstalled.' -Source $deployAppScriptFriendlyName
-			Remove-RegistryKey -Key "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1"
-			Remove-File -Path "$envProgramFilesX86\PuTTY" -Recurse -ContinueOnError $true
-			Remove-Folder -Path "$envProgramFilesX86\PuTTY" -ContinueOnError $true
-		}
-
-		##*===============================================
-		##* INSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Installation'
-
-		## Handle Zero-Config MSI Installations
-		If ($useDefaultMsi) {
-			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Install'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
-			Execute-MSI @ExecuteDefaultMSISplat; If ($defaultMspFiles) { $defaultMspFiles | ForEach-Object { Execute-MSI -Action 'Patch' -Path $_ } }
-		}
-
-		## <Perform Installation tasks here>
-		$exitCode = Execute-MSI -Action 'Install' -Path "putty-64bit-$appVersion-installer.msi" -Parameters "REBOOT=ReallySuppress /QN" -PassThru
-		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-
-		##*===============================================
-		##* POST-INSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Post-Installation'
-
-		## <Perform Post-Installation tasks here>
-		Remove-File -Path "$envCommonDesktop\PuTTY.lnk" -ContinueOnError $true
-		## Display a message at the end of the install
-		If (-not $useDefaultMsi) {
-
-		}
-	}
-	ElseIf ($deploymentType -ieq 'Uninstall')
-	{
-		##*===============================================
-		##* PRE-UNINSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Pre-Uninstallation'
-
-		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-		Show-InstallationWelcome -CloseApps 'putty,puttytel,pscp,psftp,plink,pageant,puttygen' -CloseAppsCountdown 60
-
-		## Show Progress Message (with the default message)
-		Show-InstallationProgress
-
-		## <Perform Pre-Uninstallation tasks here>
+        ## <Perform Pre-Installation tasks here>
 
 
-		##*===============================================
-		##* UNINSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Uninstallation'
+        ##*===============================================
+        ##* INSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Installation'
 
-		## Handle Zero-Config MSI Uninstallations
-		If ($useDefaultMsi) {
-			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Uninstall'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
-			Execute-MSI @ExecuteDefaultMSISplat
-		}
+        ## Handle Zero-Config MSI Installations
+        If ($useDefaultMsi) {
+            [Hashtable]$ExecuteDefaultMSISplat = @{ Action = 'Install'; Path = $defaultMsiFile }; If ($defaultMstFile) {
+                $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile)
+            }
+            Execute-MSI @ExecuteDefaultMSISplat; If ($defaultMspFiles) {
+                $defaultMspFiles | ForEach-Object { Execute-MSI -Action 'Patch' -Path $_ }
+            }
+        }
 
-		## <Perform Uninstallation tasks here>
-        $exitCode = Remove-MSIApplications -Name "PuTTY" -PassThru
-		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-		Remove-File -Path "$envCommonDesktop\PuTTY.lnk" -ContinueOnError $true
-
-		##*===============================================
-		##* POST-UNINSTALLATION
-		##*===============================================
-		[string]$installPhase = 'Post-Uninstallation'
-
-		## <Perform Post-Uninstallation tasks here>
+        ## <Perform Installation tasks here>
 
 
-	}
-	ElseIf ($deploymentType -ieq 'Repair')
-	{
-		##*===============================================
-		##* PRE-REPAIR
-		##*===============================================
-		[string]$installPhase = 'Pre-Repair'
+        ##*===============================================
+        ##* POST-INSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Post-Installation'
 
-		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-		Show-InstallationWelcome -CloseApps 'processName' -CloseAppsCountdown 60
+        ## <Perform Post-Installation tasks here>
 
-		## Show Progress Message (with the default message)
-		Show-InstallationProgress
+        ## Display a message at the end of the install
+        ## See original PSADT Deploy-Application.ps1 file from GitHub if you want to use this feature
+    }
+    ElseIf ($deploymentType -ieq 'Uninstall') {
+        ##*===============================================
+        ##* PRE-UNINSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Pre-Uninstallation'
 
-		## <Perform Pre-Repair tasks here>
+        ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
+        Show-InstallationWelcome -CloseApps 'processName' -CloseAppsCountdown 60
 
-		##*===============================================
-		##* REPAIR
-		##*===============================================
-		[string]$installPhase = 'Repair'
+        ## Show Progress Message (with the default message)
+        Show-InstallationProgress
 
-		## Handle Zero-Config MSI Repairs
-		If ($useDefaultMsi) {
-			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Repair'; Path = $defaultMsiFile; }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
-			Execute-MSI @ExecuteDefaultMSISplat
-		}
-		## <Perform Repair tasks here>
+        ## <Perform Pre-Uninstallation tasks here>
 
-		##*===============================================
-		##* POST-REPAIR
-		##*===============================================
-		[string]$installPhase = 'Post-Repair'
 
-		## <Perform Post-Repair tasks here>
+        ##*===============================================
+        ##* UNINSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Uninstallation'
+
+        ## Handle Zero-Config MSI Uninstallations
+        If ($useDefaultMsi) {
+            [Hashtable]$ExecuteDefaultMSISplat = @{ Action = 'Uninstall'; Path = $defaultMsiFile }; If ($defaultMstFile) {
+                $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile)
+            }
+            Execute-MSI @ExecuteDefaultMSISplat
+        }
+
+        ## <Perform Uninstallation tasks here>
+
+
+        ##*===============================================
+        ##* POST-UNINSTALLATION
+        ##*===============================================
+        [String]$installPhase = 'Post-Uninstallation'
+
+        ## <Perform Post-Uninstallation tasks here>
 
 
     }
-	##*===============================================
-	##* END SCRIPT BODY
-	##*===============================================
+    ElseIf ($deploymentType -ieq 'Repair') {
+        ##*===============================================
+        ##* PRE-REPAIR
+        ##*===============================================
+        [String]$installPhase = 'Pre-Repair'
 
-	## Call the Exit-Script function to perform final cleanup operations
-	Exit-Script -ExitCode $mainExitCode
+        ## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
+        Show-InstallationWelcome -CloseApps 'processName' -CloseAppsCountdown 60
+
+        ## Show Progress Message (with the default message)
+        Show-InstallationProgress
+
+        ## <Perform Pre-Repair tasks here>
+
+        ##*===============================================
+        ##* REPAIR
+        ##*===============================================
+        [String]$installPhase = 'Repair'
+
+        ## Handle Zero-Config MSI Repairs
+        If ($useDefaultMsi) {
+            [Hashtable]$ExecuteDefaultMSISplat = @{ Action = 'Repair'; Path = $defaultMsiFile; }; If ($defaultMstFile) {
+                $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile)
+            }
+            Execute-MSI @ExecuteDefaultMSISplat
+        }
+        ## <Perform Repair tasks here>
+
+        ##*===============================================
+        ##* POST-REPAIR
+        ##*===============================================
+        [String]$installPhase = 'Post-Repair'
+
+        ## <Perform Post-Repair tasks here>
+
+
+    }
+    ##*===============================================
+    ##* END SCRIPT BODY
+    ##*===============================================
+
+    ## Call the Exit-Script function to perform final cleanup operations
+    Exit-Script -ExitCode $mainExitCode
 }
 Catch {
-	[int32]$mainExitCode = 60001
-	[string]$mainErrorMessage = "$(Resolve-Error)"
-	Write-Log -Message $mainErrorMessage -Severity 3 -Source $deployAppScriptFriendlyName
-	Show-DialogBox -Text $mainErrorMessage -Icon 'Stop'
-	Exit-Script -ExitCode $mainExitCode
+    [Int32]$mainExitCode = 60001
+    [String]$mainErrorMessage = "$(Resolve-Error)"
+    Write-Log -Message $mainErrorMessage -Severity 3 -Source $deployAppScriptFriendlyName
+    Show-DialogBox -Text $mainErrorMessage -Icon 'Stop'
+    Exit-Script -ExitCode $mainExitCode
 }
+
 
 # SIG # Begin signature block
 # MIImVgYJKoZIhvcNAQcCoIImRzCCJkMCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBuyIaBIJWpSZRe
-# auXiYEhBA7y5hQx3Z6imRI0wOwfFxaCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCWeM9GncvtcC4Y
+# K8yEqbmSu2pV0qbiT+4f2TIIR3IQlqCCH8EwggVvMIIEV6ADAgECAhBI/JO0YFWU
 # jTanyYqJ1pQWMA0GCSqGSIb3DQEBDAUAMHsxCzAJBgNVBAYTAkdCMRswGQYDVQQI
 # DBJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcMB1NhbGZvcmQxGjAYBgNVBAoM
 # EUNvbW9kbyBDQSBMaW1pdGVkMSEwHwYDVQQDDBhBQUEgQ2VydGlmaWNhdGUgU2Vy
@@ -428,32 +450,32 @@ Catch {
 # ZDErMCkGA1UEAxMiU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5nIENBIFIzNgIR
 # AKVN33D73PFMVIK48rFyyjEwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGCNwIB
 # DDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEE
-# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgOkqZE7i7DSdQ
-# FB8GXCeWTFMNkjDb0s0o8JuGzr6uhAowDQYJKoZIhvcNAQEBBQAEggGAPw2cL3sS
-# h11TjyRgtFpEnQPNnuXDcj1MhPCrR3ottUCA2VC73WIgvrbKpxo0w/nGNeb37wxf
-# E38cAF0Tn0U0iiz3UmZmwqZ2i37hjtPrPLN37G+VRKzXft5K1D9yRDffWArqZ0Lw
-# +PY6B1qpC89bzZLlcKn5fRxAdoRU0g/z4hBT/W7WlbX1InCyLiyphyOGff/HIZal
-# whfhmBGPbnJilcYAv2gEDsKMNcbcDa74Zi/R7xKK1i6NUMt7ijDtnEyp9D4+iPqA
-# 5VMIlh30+zHpL6y9jTVMtYxbgrJjqMvYfole0RMhaqbxiGEwftJHbBxFSxAbHTUl
-# yOzjILtDpaWWr3MZeh2dP7ldFaB/wM5f6pFxtI+RuCkE284FXXVfkYlcSBTXUXrp
-# s6ptbMQNAN92PaoiUvj1Tvbu8l+komx5lF7WIF/j8WWyB5aTjoD2c7jmV+t/T0dE
-# IUqLODsehVIqO1+U9jVao9/YlXuzqZC7ToVSYjVBUAHR8DOjr6jOjXtYoYIDTDCC
+# AYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQg8655iIDs2EfE
+# btddh6fAamIOZ4ZnTTirJxb6TL5jeU0wDQYJKoZIhvcNAQEBBQAEggGAefueqZrX
+# IoO+v2G1waEe21CvB2NMwJPgMOcelj/QMlkqzjdwY7AMWWp4Ss6scF7ORXGQ529N
+# xEvr3MK9wrqQ4uAhXWbhy0EzcYJuLHaWQ3AKC3IjEUy2IXtrseeEg98ddbQ/bh3u
+# GhzHsxchBYKN37p4K5XUoMUPVoO3CTF4jr0R2ULSqz+tV8bDo2X2V26Qg4arP3yk
+# MJXvZJzj59Q8D9t0mDm1YIVZNHAkUshpgIwWu49JaFBMdn+4P6x+scMZ7kXiN6pL
+# omJjk3woXi0DFpaqJcN29yKYE+OX1ByKVFvekNTxxcTUUI5G3qsRrNMOE0JYV79P
+# S3pkeKCthEmASiw1a2sMOAGXfbovPbu44ViBI9kz6BZxVZ464VN4LqsaNsjdOdEn
+# h7Cg6n7FHszX1oR4wCzPFB8B6RRJ5L9BeSHMhzn+mPTtdEve/lcuxBm/0K49lIE4
+# lAazBqA5H1K7DZI7R91qqQ2FRUKYznCZ87gfJxeJifDp+MszrCDF6nEloYIDTDCC
 # A0gGCSqGSIb3DQEJBjGCAzkwggM1AgEBMIGSMH0xCzAJBgNVBAYTAkdCMRswGQYD
 # VQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGDAWBgNV
 # BAoTD1NlY3RpZ28gTGltaXRlZDElMCMGA1UEAxMcU2VjdGlnbyBSU0EgVGltZSBT
 # dGFtcGluZyBDQQIRAJA5f5rSSjoT8r2RXwg4qUMwDQYJYIZIAWUDBAICBQCgeTAY
-# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMzAzMjMy
-# MTIxMDBaMD8GCSqGSIb3DQEJBDEyBDCnvJkc0XJxnkY3eJdU0u5T4tlNIYfo7Arw
-# Ggd4OoPXJPgWr7rZRGk4Yr+yOw+qcWQwDQYJKoZIhvcNAQEBBQAEggIAG65IJVyk
-# u16bgluDVnPspJ7CyHsywEZibVETqGuz3CunnoXm1l06v2cqcZH4SLtU/suY/uBz
-# oSPXfOURx8SZQ1vSptJEKlTkJ1tAeoCI2kvAdfmrJX/AgKObZdhcU3A1Ir9Gqa7n
-# Rgqlj9witZhonM+/IGUaRslH5klhTumcF1UTerIGEOksN8SzPofnGB/X+k7yN8p+
-# 0TIbgPqh2L+40lQDoTnojDrt5Iz0K488oo672wb+1oWrNCYXOewaMWl3+wgzXrks
-# CnSOwx9Pi4FqRamYXmKf1YELphXtYFk39C7Wu3IZzJqdfYHyVk5oXeYhZujtK3X9
-# MoCq7c9M3ZIdUpcPkJ5aBJSVAmuGsRVB5drq5f9dwEU5FgLHiCRhrNsDZYKDZt+m
-# SXICwNEMTQEXIEyR92DWP91pvuiSX8+9h8+EneOlOGNgwFKCh/DNwqRIBkRK7sXi
-# fxmxBiUQKcovlWTqMKylJa8R0MFmVEk281Rnnz59iLCaeUROjbqePk0r24gSio/M
-# +dNIOMt0vV5uVimKSbY0rzWKAehZZoOxaxWfO8mncHO4MkNCTKBNd9dD2TYk8jEL
-# 5a0WaZyau1pD9f1Tvca7es/Gc8T36ZfqhQe5Yjh2Rhj/n896VjjWOHEn5NvQOrcm
-# mjyfBXV0YFOGl9pqgMM7eKCPnyRZE7ozhlY=
+# BgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0yMzAzMjQx
+# NTE0MzZaMD8GCSqGSIb3DQEJBDEyBDCbKguEXkv+RX0tIEc44GqaM9M9HFaGCgw/
+# uVIW7R+eqLL7sc8PituzBdG62Zh62ckwDQYJKoZIhvcNAQEBBQAEggIAQISC0L2v
+# kGZJIafSV907V4hYTpKZqRRXj/RpoiNAMeyveUJGYqKgqC67HEyeWg4KlzN95s8C
+# rk/SrEe5JYkQV98pgq9ixMApPcGrJp4E0CIm23N5SvaeeXA2yqrG04Cc/49cxw1y
+# SzzrAByVlVpIJH1Z8NfbKDcEgOaMCjD4kFxTXTI+beB4osXIi0zZZ8SycLpcnj8w
+# 6XOYvGKpsYHHcBpvBy2Gi/ZIuATgC+98YKfjJagyxRzCS5U7QHa3Zx4lWuVVHX1R
+# HQqaflddPY6DSG0at33w9NcBBOmI7+vLkFJA13lel9RN+BGV9PXMiADhAcInigXl
+# 0+H6+2M6tiixqHlEWYLvfpoCo5o9nbOaF2BRuVpDxxruBCeRzoQ+jSYXIwOi0v4e
+# S2T7wvcJKZc41t8ztA91riA1GLMQ8IgElbZyebPXFE1Do+aaP7Xl5OeBCQBv5mGy
+# hGpIOTmLkB1apaazEIklaxENA3uzsiRXZISlWxCpZa04f9VQ9Zs17kcO60s3E4E6
+# e/O7kZA3LRzXBl1NdoKDA60wTly8FB+Q6USVRegZ81ILCsD1g8c0HbY/lAafsPNC
+# 8mdEStyr5Np6dCSAdg3EQX7agcerecQeHc0sMXt14Y6qdtfXHOdZfbcOm15osgPm
+# 0z/KFePMZ0Vb4WRD8u964XGp40oKoM2sQiU=
 # SIG # End signature block
